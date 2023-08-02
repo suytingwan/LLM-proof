@@ -146,6 +146,8 @@ class EntireProofsDataset(Dataset):  # type: ignore
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, model_max_length=max_len
         )
+        # for gpt
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         self.max_input_len = max_input_len
         self.max_output_len = max_output_len
         self.is_train = is_train
@@ -164,7 +166,7 @@ class EntireProofsDataset(Dataset):  # type: ignore
         if self.is_train:
             proof = proof.shuffle_context()
 
-        input_seq = f"$hypothesis$ = {proof.hypothesis} ; $context$ = {proof.serialize_context()}"
+        input_seq = f"$hypothesis$ = {proof.hypothesis} ; $context$ = {proof.serialize_context()} ; $proof$ = "
 
         ex = deepcopy(ex)
         ex["input_seq"] = input_seq
@@ -174,11 +176,11 @@ class EntireProofsDataset(Dataset):  # type: ignore
     def collate(self, examples: List[Example]) -> Batch:
         """
         self-instruct data format:
-        input: instruction + hypothesis + context + proof
-        output: [pad] + proof
+        input: hypothesis + context + proof
+        output: [-100] + proof
         """
         instruction = "Generate the proof from following hypothesis and context. "
-        inp = [ex["input_seq"] + ex["output_seq"] for ex in examples]
+        inp = [ex["input_seq"] + ' ' + ex["output_seq"] + self.tokenizer.eos_token for ex in examples]
         input_seq = self.tokenizer(
             inp,
             padding="longest",
@@ -207,7 +209,7 @@ class EntireProofsDataset(Dataset):  # type: ignore
             output_seq_mask[i, :sum(inp_exp_seq.attention_mask[i])] = 0
 
         batch = {
-            "input_seq": inp,
+            "input_seq": inp_exp, # no proof output
             "input_seq_ids": input_seq.input_ids,
             "input_seq_mask": input_seq.attention_mask,
             "output_seq": oup,
@@ -239,6 +241,7 @@ class StepwiseDataset(Dataset):  # type: ignore
             model_name, model_max_length=max_len
         )
         #self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         self.max_input_len = max_input_len
         self.max_output_len = max_output_len
         self.sample_goal = sample_goal
@@ -264,12 +267,12 @@ class StepwiseDataset(Dataset):  # type: ignore
     def collate(self, examples: List[Example]) -> Batch:
         """
         self-instruct data format:
-        input: instruction + hypothesis + context + proof
-        output: [pad] + proof
+        input: hypothesis + context + proof
+        output: [-100] + proof
         """
         instruction = "Generate the proof from following hypothesis and context. "
         if self.is_train:
-            inp = [ex["input_seq"] + ex["output_seq"] for ex in examples]
+            inp = [ex["input_seq"] + ' ' + ex["output_seq"] + self.tokenizer.eos_token  for ex in examples]
         else:
             inp = [ex["input_seq"] for ex in examples]
         input_seq = self.tokenizer(
@@ -279,8 +282,9 @@ class StepwiseDataset(Dataset):  # type: ignore
             truncation=True,
             return_tensors="pt",
         )
+        inp_exp = [ex["input_seq"] for ex in examples]
         batch = {
-            "input_seq": inp,
+            "input_seq": inp_exp,
             "input_seq_ids": input_seq.input_ids,
             "input_seq_mask": input_seq.attention_mask,
         }
@@ -294,7 +298,7 @@ class StepwiseDataset(Dataset):  # type: ignore
 
             input_ids = input_seq.input_ids
             labels = input_ids.clone()
-            inp_exp = [ex["input_seq"] for ex in examples]
+
             inp_exp_seq = self.tokenizer(
                 inp_exp,
                 padding="longest",

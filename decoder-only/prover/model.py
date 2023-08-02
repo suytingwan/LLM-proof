@@ -136,6 +136,7 @@ class EntailmentWriter(pl.LightningModule):
             model_name, model_max_length=max_input_len
         )
         #self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         if (
             model_name.startswith("t5-")
             or model_name.startswith("google/t5-v1_1-")
@@ -204,6 +205,8 @@ class EntailmentWriter(pl.LightningModule):
         output_text = self.tokenizer.batch_decode(
             output.sequences, skip_special_tokens=True
         )
+        output_text = [output_text_.strip().split("$proof$ = ")[-1] for output_text_ in output_text]
+
         scores = output.sequences_scores.detach().exp().tolist()
         return output_text, scores
 
@@ -255,6 +258,7 @@ class EntailmentWriter(pl.LightningModule):
         output_text = self.tokenizer.batch_decode(
             output.sequences, skip_special_tokens=True
         )
+        output_text = [output_text_.strip().split("$proof$ = ")[-1] for output_text_ in output_text]
 
         batch_size = len(input_text)
         assert len(output_text) % batch_size == 0
