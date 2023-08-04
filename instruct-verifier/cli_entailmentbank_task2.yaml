@@ -1,0 +1,19 @@
+seed_everything: 1
+trainer:
+  gpus: 1
+  max_epochs: 50
+  callbacks:
+    - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: step
+model:
+  lr: 1e-5
+  warmup_steps: 2500
+  model_name: gpt2-large
+data:
+  dataset: entailmentbank
+  batch_size: 1
+  num_workers: 2
+  max_input_len: 256
+  path_train: ../data_prompt/entailment_trees/dataset/task_2/train.jsonl
+  path_val: ../data-prompt/entailment_trees/dataset/task_2/dev.jsonl
