@@ -5,7 +5,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-from transformers import AutoTokenizer, AutoModel
+import os
+import json
+from transformers import AutoTokenizer, AutoModelForCausalLM
 
 
 class EntailmentVerifier(pl.LightningModule):
@@ -14,20 +16,24 @@ class EntailmentVerifier(pl.LightningModule):
         model_name: str,
         lr: float,
         warmup_steps: int,
-        pos_weight: float,
+        num_beams: int,
+        topk: int,
         max_input_len: int,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
         self.lr = lr
         self.warmup_steps = warmup_steps
-        self.pos_weight = pos_weight
+        self.num_beams = num_beams
+        self.topk = topk
         self.max_input_len = max_input_len
         self.tokenizer = AutoTokenizer.from_pretrained(
-            model_name, model_max_lengt=max_input_len
+            model_name, model_max_length=max_input_len
         )
+        # for gpt
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         #language model head
-        self.encoder = AutoModel.from_pretrained(model_name)
+        self.seq2seq = AutoModelForCausalLM.from_pretrained(model_name)
 
     def forward(
         self,
@@ -45,21 +51,43 @@ class EntailmentVerifier(pl.LightningModule):
             assert self.trainer is not None
             print(f"Logging to {self.trainer.log_dir}")
 
-    def training_step(self, batch: Batch, batch_idx: int) -> Torch.Tensor:
-        logits = self(batch["input_ids"], batch["attention_mask"])
-        loss = F.binary_cross_entropy_with_logits(
-            logit, batch["label"].float(), pos_weight=torch.tensor(self.pos_weight)
+    def generate_conclusion(self, input_text: List[str]) -> Tuple[List[str], List[float]]:
+        assert self.trainer is not None
+        input = self.tokenizer(
+            input_text,
+            padding="longest",
+            max_length=self.trainer.datamodule.max_input_len,
+            truncation=True,
+            return_tensors="pt",
         )
+        output = self.seq2seq.generate(
+            input_ids=input.input_ids.to(self.device, non_blocking=True),
+            attention_mask=input.attention_mask.to(self.device, non_blocking=True),
+            max_length=self.trainer.datamodule.max_output_len,
+            num_beams=self.num_beams,
+            num_return_sequences=1,
+            early_stopping=True,
+            output_scores=True,
+            return_dict_in_generate=True
+        )
+
+        output_text = self.tokenizer.batch_decode(
+            output.sequences, skip_special_tokens=True
+        )
+        output_text = [output_text_.strip().split("$conclusion$: ")[-1] for output_text_ in output_text]
+        scores = output.sequences_scores.detach().exp().tolist()
+        return output_text, scores
+
+    def training_step(self, batch: Batch, batch_idx: int) -> torch.Tensor:
+        loss = self(batch["input_ids"], batch["attention_mask"], batch["label"])
         self.log("loss_train", loss, on_epoch=True)
-        self.log_metrics("train", logit, batch["label"])
 
     def validation_step(self, batch: Batch, batch_idx: int) -> None:
-        logit = self(batch["input_ids", batch["attention_mask"])
-        loss = F.binary_cross_entropy_with_logits(
-            logit, batch["label"].float(), pos_weight=torch.tensor(self.pos_weight)
-        )
+        loss = self(batch["input_ids"], batch["attention_mask"], batch["label"])
         self.log("loss_val", loss)
-        self.log_metrics("val", logit, batch["label"])
+
+        pred, score = self.generate_conclusion(batch["input_seq"])
+        return pred, score, batch["premises"], batch["conclusion"]
 
     def configure_optimizers(self) -> Dict[str, Any]:
         assert self.trainer is not None
@@ -83,7 +111,7 @@ class EntailmentVerifier(pl.LightningModule):
             ". ".join(premises) + ".",
             conclusion,
             padding="logest",
-            truncation="longest_first",
+            truncation=True,
             max_length=self.max_input_len,
             return_tensors="pt",
         )
@@ -102,7 +130,7 @@ class EntailmentVerifier(pl.LightningModule):
             [". ".join(premises) + "." for premises in premises_batch],
             conclusion_batch,
             padding="longest",
-            truncation="longest_first",
+            truncation=True,
             max_length=self.max_input_len,
             return_tensors="pt",
         )
@@ -110,3 +138,23 @@ class EntailmentVerifier(pl.LightningModule):
         attention_mask = entailment.attention_Mask.to(self.device)
         logits = torch.sigmoid(self(input_ids, attention_mask))
         return logits.detach().cpu().numpy()
+
+    def validation_epoch_end(self, outputs: Iterable[Any]) -> None:
+        results = []
+        for out in outputs:
+            for pred, score, premises, conclusion in zip(*out):
+                results.append(
+                    {
+                        "pred": pred,
+                        "score": score,
+                        "premises": premises,
+                        "conclusion": conclusion
+                    }
+                )
+
+        assert self.trainer is not None
+        if self.logger is not None and self.trainer.log_dir is not None:
+            json_path = os.path.join(self.trainer.log_dir, "results.json")
+            json.dump(results, open(json_path, "wt"))
+            print(f"validation results saved to {json_path}")
+

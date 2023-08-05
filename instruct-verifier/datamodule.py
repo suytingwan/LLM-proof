@@ -25,6 +25,8 @@ class EntailmentDataset(Dataset):
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, model_max_length=max_input_len
         )
+        # for gpt2
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         assert split in ("train", "val")
         self.split = split
         self.max_input_len = max_input_len
@@ -36,25 +38,34 @@ class EntailmentDataset(Dataset):
     def __getitem__(self, idx: int) -> Example:
         ex = self.data[idx]
         premises = deepcopy(ex["premises"])
-        random.shuffle(premises)
-        premises = ". ".join(premises) + "."
+        conclusion = deepcopy(ex["conclusion"])
         return {
             "premises": f"$premises$: {premises}",
-            "conclusion": f"$conclusion$: ex['conclusion']",
+            "conclusion": f"$conclusion$: {conclusion}",
         }
 
     def preprocess(self, path:str) -> List[Example]:
-        raise NotImplementedError
+        #raise NotImplementedError
+        data = []
+        for count, line in enumerate(open(path)):
+            info = json.loads(line.strip())
+            if info['label']:
+                data.append(info)
+            # filter by label here
+            if count == 20:
+                break
+            #data.append(info)
+        return data
 
     def collate(self, examples: List[Example]) -> Batch:
         inp = [ex["premises"] + " " + ex["conclusion"] + self.tokenizer.eos_token for ex in examples]
         
         entailment = self.tokenizer(
-            inp
+            inp,
             padding="longest",
-            truncation="longest_first",
+            truncation=True,
             max_length=self.max_input_len,
-            return_tensor="pt",
+            return_tensors="pt",
         )
 
         input_ids = entailment.input_ids
@@ -63,7 +74,7 @@ class EntailmentDataset(Dataset):
         input_exp_seq = self.tokenizer(
             input_exp,
             padding="longest",
-            truncation="longest_first",
+            truncation=True,
             max_length=self.max_input_len,
             return_tensors="pt",
         )
@@ -77,6 +88,7 @@ class EntailmentDataset(Dataset):
             "input_ids": entailment["input_ids"],
             "attention_mask": entailment["attention_mask"],
             "label": labels,
+            "input_seq": input_exp,
         }
 
 
@@ -90,6 +102,7 @@ class EntailmentDataModule(pl.LightningDataModule):
         batch_size: int,
         num_workers: int,
         max_input_len: int,
+        max_output_len: int
     ) -> None:
         super().__init__()
         self.dataset = EntailmentDataset
@@ -99,13 +112,14 @@ class EntailmentDataModule(pl.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.max_input_len = max_input_len
+        self.max_output_len = max_output_len
 
     def prepare_data(self) -> None:
         pass
 
     def setup(self, stage: Optional[str] = None) -> None:
         if stage in (None, "fit"):
-            self.ds_train = self.Dataset(
+            self.ds_train = self.dataset(
                 self.path_train,
                 self.model_name,
                 "train",
@@ -113,7 +127,7 @@ class EntailmentDataModule(pl.LightningDataModule):
             )
 
         if stage in (None, "fit", "validate"):
-            self.ds_val = self.Dataset(
+            self.ds_val = self.dataset(
                 self.path_val,
                 self.model_name,
                 "val",
@@ -143,4 +157,17 @@ class EntailmentDataModule(pl.LightningDataModule):
         )
 
 
+if __name__ == "__main__":
 
+    path_train = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/data_prompt/entailment_verifier_task2_samples.txt"
+    path_val = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/data_prompt/entailment_verifier_task2_samples.txt"
+
+    ds_val = EntailmentDataset(
+        split="val",
+        path=path_train,
+        model_name="gpt2-large",
+        max_input_len=1024)
+    print(len(ds_val))
+    print(ds_val[0])
+    ret = ds_val.collate([ds_val[0], ds_val[1]])
+    print(ret)
