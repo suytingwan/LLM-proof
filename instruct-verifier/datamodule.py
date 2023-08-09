@@ -52,8 +52,8 @@ class EntailmentDataset(Dataset):
             if info['label']:
                 data.append(info)
             # filter by label here
-            if count == 20:
-                break
+            #if count == 20:
+            #    break
             #data.append(info)
         return data
 

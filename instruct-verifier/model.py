@@ -81,6 +81,7 @@ class EntailmentVerifier(pl.LightningModule):
     def training_step(self, batch: Batch, batch_idx: int) -> torch.Tensor:
         loss = self(batch["input_ids"], batch["attention_mask"], batch["label"])
         self.log("loss_train", loss, on_epoch=True)
+        return {"loss": loss}
 
     def validation_step(self, batch: Batch, batch_idx: int) -> None:
         loss = self(batch["input_ids"], batch["attention_mask"], batch["label"])
@@ -107,18 +108,19 @@ class EntailmentVerifier(pl.LightningModule):
         )
 
     def score(self, premises: List[str], conclusion: str) -> float:
+        premise = ". ".join(premises) + "."
+        inp = f"$premises$: {premise} $conclusion$: {conclusion}" + self.tokenizer.eos_token
         entailment = self.tokenizer(
-            ". ".join(premises) + ".",
-            conclusion,
-            padding="logest",
+            inp,
+            padding="longest",
             truncation=True,
             max_length=self.max_input_len,
             return_tensors="pt",
         )
         input_ids = entailment.input_ids.to(self.device)
         attention_mask = entailment.attention_mask.to(self.device)
-        logit = torch.sigmoid(self(input_ids, attention_mask))
-        return logit.detach().item()
+        loss = self.seq2seq(input_ids=input_ids, attention_mask=attention_mask, labels=input_ids).loss
+        return loss.detach().item()
 
     def batch_score(
         self, premises_batch: List[List[str]], conclusion_batch: List[str]
@@ -126,18 +128,23 @@ class EntailmentVerifier(pl.LightningModule):
         assert len(premises_batch) == len(conclusion_batch)
         if len(premises_batch) == 0:
             return np.array([])
+        
+        inp = []
+        for premises, conclusion in zip(premises_batch, conclusion):
+             premise = ". ".join(premises) + "."
+             inp.append(f"$premises$: {premise} $conclusion$: {conclusion}" + self.tokenizer.eos_token)
+             
         entailment = self.tokenizer(
-            [". ".join(premises) + "." for premises in premises_batch],
-            conclusion_batch,
+            inp,
             padding="longest",
             truncation=True,
             max_length=self.max_input_len,
             return_tensors="pt",
         )
         input_ids = entailment.input_ids.to(self.device)
-        attention_mask = entailment.attention_Mask.to(self.device)
-        logits = torch.sigmoid(self(input_ids, attention_mask))
-        return logits.detach().cpu().numpy()
+        attention_mask = entailment.attention_mask.to(self.device)
+        loss = self.seq2seq(input_ids=input_ids, attention_mask=attention_mask, labels=input_ids).loss
+        return loss.detach().cpu().numpy()
 
     def validation_epoch_end(self, outputs: Iterable[Any]) -> None:
         results = []
@@ -157,4 +164,13 @@ class EntailmentVerifier(pl.LightningModule):
             json_path = os.path.join(self.trainer.log_dir, "results.json")
             json.dump(results, open(json_path, "wt"))
             print(f"validation results saved to {json_path}")
+            tsv_path = os.path.join(self.trainer.log_dir, "results.tsv")
+            with open(tsv_path, "wt") as oup:
+                for r in results:
+                    premises = r["premises"].strip()
+                    conclusion = r["conclusion"].strip()
+                    pred = r["pred"].strip()
+                    oup.write(f"$premises$ = {premises} $conclusion$ = {conclusion} $pred$={pred}\n")
+ 
+                print(f"validation results saved to {tsv_path}")
 
