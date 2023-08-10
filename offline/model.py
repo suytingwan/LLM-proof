@@ -34,12 +34,12 @@ class EntailmentVerifier(pl.LightningModule):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         #language model head
         self.seq2seq = AutoModelForCausalLM.from_pretrained(model_name)
-        checkpoint = torch.load("./ckpt/lightning_logs/version_1/checkpoints/epoch=19-step=16880.ckpt")
-        state_dict = {}
-        for key in checkpoint["state_dict"].keys():
-            new_key = key.replace("seq2seq.", "")
-            state_dict[new_key] = checkpoint["state_dict"][key]
-        self.seq2seq.load_state_dict(state_dict)
+        #checkpoint = torch.load("./ckpt/lightning_logs/version_1/checkpoints/epoch=19-step=16880.ckpt")
+        #state_dict = {}
+        #for key in checkpoint["state_dict"].keys():
+        #    new_key = key.replace("seq2seq.", "")
+        #    state_dict[new_key] = checkpoint["state_dict"][key]
+        #self.seq2seq.load_state_dict(state_dict)
 
     def forward(
         self,
@@ -90,11 +90,32 @@ class EntailmentVerifier(pl.LightningModule):
         return {"loss": loss}
 
     def validation_step(self, batch: Batch, batch_idx: int) -> None:
-        loss = self(batch["input_ids"], batch["attention_mask"], batch["label"])
-        self.log("loss_val", loss)
-
-        pred, score = self.generate_conclusion(batch["input_seq"])
-        return pred, score, batch["premises"], batch["conclusion"]
+        battle_loss = []
+        for i in range(batch["input_ids"].shape[0]):
+            if batch["out_mask_scores"][i] == 1.0:
+                loss = self(batch["input_ids"][i,:], batch["attention_mask"][i,:], batch["label"][i,:])
+                battle_loss.append(loss.cpu().item())
+            else:
+                battle_loss.append(1000.0)
+        json_path = os.path.join(self.trainer.log_dir, f"results_train.json")
+        fw = open(json_path, 'a+')
+        # add positive/negative and lm loss
+        best_ind = np.argmin(battle_loss)
+        worst_ind = np.argmax(battle_loss)
+        ret = {
+            "premises": batch["premises"],
+            "conclusion": batch["conclusion"],
+            "proof_id": batch["proof_id"],
+            "hypothesis": batch["hypothesis"],
+            "context": batch["context"],
+            "proof_gt": batch["proof_gt"],
+            "out_mask_scores": batch["out_mask_scores"],
+            "verifier_loss": battle_loss,
+            "best_ind": str(best_ind),
+            "worst_ind": str(worst_ind),
+        }
+        fw.write(json.dumps(ret) + '\n')
+        fw.close()
 
     def configure_optimizers(self) -> Dict[str, Any]:
         assert self.trainer is not None

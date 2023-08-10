@@ -1,0 +1,35 @@
+seed_everything: 1
+trainer:
+  accelerator: gpu
+  gpus: 1
+  gradient_clip_val: 0.5
+  max_epochs: 100
+  accumulate_grad_batches: 32
+  log_every_n_steps: 10
+  check_val_every_n_epoch: 200
+  num_sanity_val_steps: 0
+  default_root_dir: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/offline/ckpt
+  callbacks:
+      - class_path: pytorch_lightning.callbacks.LearningRateMonitor
+        init_args:
+          logging_interval: step
+      - class_path: pytorch_lightning.callbacks.ModelCheckpoint
+        init_args:
+          every_n_epochs: 1
+          save_on_train_epoch_end: true
+          save_weights_only: true
+
+model:
+  lr: 2e-5
+  warmup_steps: 800
+  model_name: gpt2
+  num_beams: 5
+  topk: 10
+data:
+  dataset: entailmentbank
+  batch_size: 1
+  num_workers: 2
+  max_input_len: 256
+  max_output_len: 256
+  path_train: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/train_sft/prover/ckpt/lightning_logs/version_2/results_val.json
+  path_val: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/train_sft/prover/ckpt/lightning_logs/version_2/results_val.json

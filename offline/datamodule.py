@@ -38,13 +38,16 @@ class EntailmentDataset(Dataset):
 
     def __getitem__(self, idx: int) -> Example:
         ex = self.data[idx]
-        premises = [f"$premises$: {premise}" for premises in ex["premises"]]
+        premises = [f"$premises$: {premise}" for premise in ex["premises"]]
         conclusion = [f"$conclusion$: {conclusion}" for conclusion in ex["conclusion"]]
         
         return {
             "proof_id": ex["proof_id"],
-            "out_score": ex["out_score"],
+            "out_score": ex["out_score"], #generator score
             "out_mask_scores": ex["out_mask_scores"],
+            "hypothesis": ex["hypothesis"],
+            "context": ex["context"],
+            "proof_gt": ex["proof_gt"],
             "premises": premises,
             "conclusion": conclusion,
         }
@@ -52,11 +55,12 @@ class EntailmentDataset(Dataset):
     def preprocess(self, path:str) -> List[Example]:
         #raise NotImplementedError
         data = []
+        num_invalid = 0
         for count, line in enumerate(open(path)):
             ex = json.loads(line.strip())
-            hypothesis = normalize(ex["hypothesis"])
-            context = extract_context(ex["context"])
-            proof_text = normalize(ex["proof_gt"].strip())
+            hypothesis = ex["hypothesis"]
+            context = ex["context"]
+            proof_text = ex["proof_gt"].strip()
             proof_id = ex["proof_id"]
             try:
                 proof = Proof(
@@ -74,27 +78,25 @@ class EntailmentDataset(Dataset):
                 out_mask_scores = []
                 for out_text, out_score in zip(out_texts, out_scores):
                     try:
-                        step = ProofStep(proof, out_text, strict=False)
+                        step = ProofStep(proof, out_text.strip(";"), strict=False)
                         premises, conclusion = step.serialize()
+                        #print(premises)
+                        #print(conclusion)
                         out_premises.append(premises)
                         out_conclusion.append(conclusion)
-                        #out_reorg_texts.append(f"$premises$: {premises} $conclusion$: {conclusion}")
                         out_mask_scores.append(1.0)
                     except InvalidProofStep:
                         out_premises.append(out_text)
-                        out_conclusion.append(conclusion)
+                        out_conclusion.append(out_text)
                         out_mask_scores.append(0.0)  
+                info = deepcopy(ex)
+                info["premises"] = out_premises
+                info["conclusion"] = out_conclusion
+                info["out_mask_scores"] = out_mask_scores
+                data.append(info)
             except InvalidProofStep:
                 num_invalid += 1
-            info = deepcopy(ex)
-            info["premises"] = out_reorg_texts
-            info["conclusion"] = out_conclusion
-            info["out_mask_scores"] = out_mask_scores
-            data.append(info)
-            # filter by label here
-            #if count == 20:
-            #    break
-            #data.append(info)
+        print("num invalid proofs: ", num_invalid)
         return data
 
     def collate(self, examples: List[Example]) -> Batch:
@@ -133,6 +135,11 @@ class EntailmentDataset(Dataset):
             "attention_mask": entailment["attention_mask"],
             "label": labels,
             "input_seq": input_exp,
+            "out_mask_scores": ex["out_mask_scores"],
+            "proof_id": ex["proof_id"],
+            "hypothesis": ex["hypothesis"],
+            "context": ex["context"],
+            "proof_gt": ex["proof_gt"]
         }
 
 
@@ -203,13 +210,13 @@ class EntailmentDataModule(pl.LightningDataModule):
 
 if __name__ == "__main__":
 
-    path_train = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/data_prompt/entailment_verifier_task2_samples.txt"
+    path_train = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/train_sft/prover/ckpt/lightning_logs/version_2/results_val.json"
     path_val = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/data_prompt/entailment_verifier_task2_samples.txt"
 
     ds_val = EntailmentDataset(
         split="val",
         path=path_train,
-        model_name="gpt2-large",
+        model_name="gpt2",
         max_input_len=1024)
     print(len(ds_val))
     print(ds_val[0])
