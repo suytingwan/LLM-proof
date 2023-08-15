@@ -327,29 +327,39 @@ class EntailmentWriter(pl.LightningModule):
         #print(output_text)
         #print(output_scores)
 
-        #if self.dataset == "entailmentbank":
-        #    return output_text, output_scores, batch["proof"]
-        #else:
-        #    return (
-        #        proof_pred,
-        #        score,
-        #        batch["proof"],
-        #        batch["answer"],
-        #        batch["depth"],
-        #        batch["all_proofs"],
-        #    )
         json_path = os.path.join(self.trainer.log_dir, f"results_{split}.json")
         fw = open(json_path, 'a+')
-        for out_text, out_score, proof in zip(output_text, output_scores, batch["proof"]):
-            ret = {
-                    "proof_pred": out_text,
-                    "out_score": out_score.tolist(),
-                    "proof_id": proof.proof_id,
-                    "hypothesis": proof.hypothesis,
-                    "context": proof.context,
-                    "proof_gt": proof.proof_text,
-                   }
-            fw.write(json.dumps(ret) + '\n')
+        if self.dataset == "entailmentbank":
+            for out_text, out_score, proof, partial_proof, stepwise_goal in \
+                zip(output_text, output_scores, batch["proof"], batch["partial_proof"], batch["output_seq"]):
+                ret = {
+                        "proof_candidates": out_text,
+                        "score_candidates": out_score.tolist(),
+                        "proof_id": proof.proof_id,
+                        "hypothesis": proof.hypothesis,
+                        "context": proof.context,
+                        "proof_gt": proof.proof_text,
+                        "partial_proof": partial_proof,
+                        "stepwise_goal": stepwise_goal,
+                      }
+                fw.write(json.dumps(ret) + '\n')
+        else:
+            for out_text, out_score, proof, answer, depth, all_proof, partial_proof, stepwise_goal in \
+                zip(output_text, output_scores, batch["proof"], batch["answer"], batch["depth"], batch["all_proofs"], batch["partial_proof"], batch["output_seq"]):
+                ret = {
+                        "proof_candidates": out_text,
+                        "score_candidates": out_score.tolist(),
+                        "proof_id": proof.proof_id,
+                        "hypothesis": proof.hypothesis,
+                        "context": proof.context,
+                        "proof_gt": proof.proof_text,
+                        "answer": answer,
+                        "depth": depth,
+                        "all_proof": all_proof,
+                        "partial_proof": partial_proof,
+                        "stepwise_goal": stepwise_goal,
+                      }
+                fw.write(json.dumps(ret) + '\n')
         fw.close()
 
     def configure_optimizers(self) -> Dict[str, Any]:

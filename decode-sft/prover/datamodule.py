@@ -51,7 +51,7 @@ def read_ruletaker_proofs(path: str, is_train: bool) -> List[Example]:
     data = []
     num_invalid = 0
 
-    for line in open(path):
+    for count, line in enumerate(open(path)):
         ex = json.loads(line)
         hypothesis = normalize(ex["hypothesis"])
         context = extract_context(ex["context"])
@@ -63,6 +63,7 @@ def read_ruletaker_proofs(path: str, is_train: bool) -> List[Example]:
                         context,
                         hypothesis,
                         normalize(proof.strip()),
+                        count,
                         strict=True,
                         requires_complete=True,
                     )
@@ -89,6 +90,7 @@ def read_ruletaker_proofs(path: str, is_train: bool) -> List[Example]:
                         context,
                         hypothesis,
                         proof,
+                        count,
                         strict=False,
                         requires_complete=False,
                     ),
@@ -107,6 +109,7 @@ def read_ruletaker_proofs(path: str, is_train: bool) -> List[Example]:
                         context,
                         f"i don't think {hypothesis}",
                         proof,
+                        count,
                         strict=False,
                         requires_complete=False,
                     ),
@@ -270,7 +273,7 @@ class StepwiseDataset(Dataset):  # type: ignore
             "input_seq_mask": input_seq.attention_mask,
         }
         for k in examples[0].keys():
-            if k not in ("input_seq", "output_seq"):
+            if k not in ("input_seq", ):
                 batch[k] = [ex[k] for ex in examples]
 
         if self.is_train:
@@ -386,6 +389,7 @@ class StepwiseDataset(Dataset):  # type: ignore
                     ex = deepcopy(ex)
                     ex["input_seq"] = input_seq
                     ex["output_seq"] = output_seq
+                    ex["partial_proof"] = partial_proof
                     eval_data.append(ex)
         return eval_data
 
