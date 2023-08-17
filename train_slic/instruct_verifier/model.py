@@ -34,12 +34,12 @@ class EntailmentVerifier(pl.LightningModule):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         #language model head
         self.seq2seq = AutoModelForCausalLM.from_pretrained(model_name)
-        checkpoint = torch.load("./ckpt/lightning_logs/version_1/checkpoints/epoch=19-step=16880.ckpt")
-        state_dict = {}
-        for key in checkpoint["state_dict"].keys():
-            new_key = key.replace("seq2seq.", "")
-            state_dict[new_key] = checkpoint["state_dict"][key]
-        self.seq2seq.load_state_dict(state_dict)
+        #checkpoint = torch.load("./ckpt/lightning_logs/version_1/checkpoints/epoch=19-step=16880.ckpt")
+        #state_dict = {}
+        #for key in checkpoint["state_dict"].keys():
+        #    new_key = key.replace("seq2seq.", "")
+        #    state_dict[new_key] = checkpoint["state_dict"][key]
+        #self.seq2seq.load_state_dict(state_dict)
 
     def forward(
         self,

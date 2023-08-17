@@ -20,6 +20,7 @@ class EntailmentDataset(Dataset):
         path: str,
         model_name: str,
         split: str,
+        dataset: str,
         max_input_len: int
     ) -> None:
         super().__init__()
@@ -31,6 +32,7 @@ class EntailmentDataset(Dataset):
         assert split in ("train", "val")
         self.split = split
         self.max_input_len = max_input_len
+        self.dataset = dataset
         self.data = self.preprocess(path)
 
     def __len__(self) -> int:
@@ -40,17 +42,10 @@ class EntailmentDataset(Dataset):
         ex = self.data[idx]
         premises = [f"$premises$: {premise}" for premise in ex["premises"]]
         conclusion = [f"$conclusion$: {conclusion}" for conclusion in ex["conclusion"]]
+        ex["premises"] = premises
+        ex["conclusion"] = conclusion
         
-        return {
-            "proof_id": ex["proof_id"],
-            "out_score": ex["out_score"], #generator score
-            "out_mask_scores": ex["out_mask_scores"],
-            "hypothesis": ex["hypothesis"],
-            "context": ex["context"],
-            "proof_gt": ex["proof_gt"],
-            "premises": premises,
-            "conclusion": conclusion,
-        }
+        return ex
 
     def preprocess(self, path:str) -> List[Example]:
         #raise NotImplementedError
@@ -71,8 +66,8 @@ class EntailmentDataset(Dataset):
                     strict=True,
                     requires_complete=True
                 )
-                out_texts = ex["proof_pred"]
-                out_scores = ex["out_score"]
+                out_texts = ex["proof_candidates"]
+                out_scores = ex["score_candidates"]
                 out_premises = []
                 out_conclusion = []
                 out_mask_scores = []
@@ -80,8 +75,10 @@ class EntailmentDataset(Dataset):
                     try:
                         step = ProofStep(proof, out_text.strip(";"), strict=False)
                         premises, conclusion = step.serialize()
-                        #print(premises)
-                        #print(conclusion)
+                        #if step.conclusion_ident == 'int':
+                        #    print(out_text)
+                        #    print(premises)
+                        #    print(conclusion)
                         out_premises.append(premises)
                         out_conclusion.append(conclusion)
                         out_mask_scores.append(1.0)
@@ -128,19 +125,46 @@ class EntailmentDataset(Dataset):
         input_attention_mask = entailment.attention_mask
         for i in range(input_exp_seq.attention_mask.shape[0]):
             labels[i, :sum(input_exp_seq.attention_mask[i])] = -100 #ignore index
-        return {
-            "premises": ex["premises"],
-            "conclusion": ex["conclusion"],
-            "input_ids": entailment["input_ids"],
-            "attention_mask": entailment["attention_mask"],
-            "label": labels,
-            "input_seq": input_exp,
-            "out_mask_scores": ex["out_mask_scores"],
-            "proof_id": ex["proof_id"],
-            "hypothesis": ex["hypothesis"],
-            "context": ex["context"],
-            "proof_gt": ex["proof_gt"]
-        }
+
+        if self.dataset == "entailmentbank":
+            return {
+                "premises": ex["premises"],
+                "conclusion": ex["conclusion"],
+                "input_ids": entailment["input_ids"],
+                "attention_mask": entailment["attention_mask"],
+                "label": labels,
+                "input_seq": input_exp,
+                "out_mask_scores": ex["out_mask_scores"],
+                "proof_candidates": ex["proof_candidates"],
+                "score_candidates": ex["score_candidates"],
+                "proof_id": ex["proof_id"],
+                "hypothesis": ex["hypothesis"],
+                "context": ex["context"],
+                "proof_gt": ex["proof_gt"],
+                "partial_proof": ex["partial_proof"],
+                "stepwise_goal": ex["stepwise_goal"]
+            }
+        elif self.dataset == "ruletaker":
+            return {
+                "premises": ex["premises"],
+                "conclusion": ex["conclusion"],
+                "input_ids": entailment["input_ids"],
+                "attention_mask": entailment["attention_mask"],
+                "labels": labels,
+                "input_seq": input_exp,
+                "proof_candidates": ex["proof_candidates"],
+                "score_candidates": ex["score_candidates"],
+                "out_mask_scores": ex["out_mask_scores"],
+                "proof_id": ex["proof_id"],
+                "hypothesis": ex["hypothesis"],
+                "context": ex["context"],
+                "proof_gt": ex["proof_gt"],
+                "partial_proof": ex["partial_proof"],
+                "stepwise_goal": ex["stepwise_goal"],
+                "answer": ex["answer"],
+                "depth": ex["depth"],
+                "all_proof": ex["all_proof"]
+            }
 
 
 class EntailmentDataModule(pl.LightningDataModule):
@@ -156,7 +180,7 @@ class EntailmentDataModule(pl.LightningDataModule):
         max_output_len: int
     ) -> None:
         super().__init__()
-        self.dataset = EntailmentDataset
+        self.dataset = dataset
         self.path_train = path_train
         self.path_val = path_val
         self.model_name = model_name
@@ -170,18 +194,20 @@ class EntailmentDataModule(pl.LightningDataModule):
 
     def setup(self, stage: Optional[str] = None) -> None:
         if stage in (None, "fit"):
-            self.ds_train = self.dataset(
+            self.ds_train = EntailmentDataset(
                 self.path_train,
                 self.model_name,
                 "train",
+                self.dataset,
                 self.max_input_len
             )
 
         if stage in (None, "fit", "validate"):
-            self.ds_val = self.dataset(
+            self.ds_val = EntailmentDataset(
                 self.path_val,
                 self.model_name,
                 "val",
+                self.dataset,
                 self.max_input_len
             )
 
@@ -210,13 +236,14 @@ class EntailmentDataModule(pl.LightningDataModule):
 
 if __name__ == "__main__":
 
-    path_train = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/train_sft/prover/ckpt/lightning_logs/version_2/results_val.json"
+    path_train = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/decode_sft/prover/eval_entailmentbank_task2/lightning_logs/version_0/results_val.json"
     path_val = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/data_prompt/entailment_verifier_task2_samples.txt"
 
     ds_val = EntailmentDataset(
         split="val",
         path=path_train,
         model_name="gpt2",
+        dataset="entailmentbank",
         max_input_len=1024)
     print(len(ds_val))
     print(ds_val[0])

@@ -34,24 +34,30 @@ class ProofStep:
             self.conclusion_ident = "hypothesis"
             self.conclusion_sent = proof.hypothesis
         else:
-            m = re.fullmatch(r"(?P<ident>int\d+): (?P<sent>.+)", conclusion)
-            if m is None or re.search(r"(sent|int)\d+", m["sent"]):
-                # Ill-formatted conclusion.
-                raise InvalidProofStep
-            self.conclusion_ident = m["ident"]
-            self.conclusion_sent = m["sent"]
-            if self.conclusion_sent == self.proof.hypothesis:
-                # Intermediate conclusion identical with the hypothesis.
-                raise InvalidProofStep
-            if strict and (
-                self.conclusion_sent in self.proof.context.values()
-                or any(
-                    self.conclusion_sent == step.conclusion_sent
-                    for step in self.proof.proof_steps
-                )
-            ):
-                # Intermediate conclusion identical with premises or an existing intermediate conclusion.
-                raise InvalidProofStep
+            # for intermediate node match
+            m = re.fullmatch(r"(?P<ident>int): (?P<sent>.+)", conclusion)
+            if m is not None:
+                self.conclusion_ident = m["ident"]
+                self.conclusion_sent = m["sent"]
+            else:
+                m = re.fullmatch(r"(?P<ident>int\d+): (?P<sent>.+)", conclusion)
+                if m is None or re.search(r"(sent|int)\d+", m["sent"]):
+                    # Ill-formatted conclusion.
+                    raise InvalidProofStep
+                self.conclusion_ident = m["ident"]
+                self.conclusion_sent = m["sent"]
+                if self.conclusion_sent == self.proof.hypothesis:
+                    # Intermediate conclusion identical with the hypothesis.
+                    raise InvalidProofStep
+                if strict and (
+                    self.conclusion_sent in self.proof.context.values()
+                    or any(
+                        self.conclusion_sent == step.conclusion_sent
+                        for step in self.proof.proof_steps
+                    )
+                ):
+                    # Intermediate conclusion identical with premises or an existing intermediate conclusion.
+                    raise InvalidProofStep
 
         if self.conclusion_ident in self.premise_idents:
             raise InvalidProofStep
@@ -68,7 +74,10 @@ class ProofStep:
     def serialize(self) -> str:
         premises = [self.proof.ident2sent(p) for p in self.premise_idents]
         premises = ". ".join(premises) + "."
-        conclusion = self.proof.ident2sent(self.conclusion_ident)
+        if self.conclusion_ident == "int":
+            conclusion = self.conclusion_sent
+        else:
+            conclusion = self.proof.ident2sent(self.conclusion_ident)
         return premises, conclusion
 
 

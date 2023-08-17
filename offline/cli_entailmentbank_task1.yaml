@@ -8,7 +8,7 @@ trainer:
   log_every_n_steps: 10
   check_val_every_n_epoch: 200
   num_sanity_val_steps: 0
-  default_root_dir: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/offline/eval_entailmentbank_task2
+  default_root_dir: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/offline/eval_entailmentbank_task1
   callbacks:
       - class_path: pytorch_lightning.callbacks.LearningRateMonitor
         init_args:
@@ -31,5 +31,5 @@ data:
   num_workers: 2
   max_input_len: 256
   max_output_len: 256
-  path_train: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/decode_sft/prover/eval_entailmentbank_task2/lightning_logs/version_0/results_val.json
-  path_val: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/decode_sft/prover/eval_entailmentbank_task2/lightning_logs/version_0/results_val.json
+  path_train: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/decode_sft/prover/eval_entailmentbank_task1/lightning_logs/version_0/results_val.json
+  path_val: /home/ysuay/codes/LLM+Reason/codes/LLMProofs/decode_sft/prover/eval_entailmentbank_task1/lightning_logs/version_0/results_val.json

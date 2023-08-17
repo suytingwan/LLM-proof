@@ -345,7 +345,8 @@ class EntailmentWriter(pl.LightningModule):
                 fw.write(json.dumps(ret) + '\n')
         else:
             for out_text, out_score, proof, answer, depth, all_proof, partial_proof, stepwise_goal in \
-                zip(output_text, output_scores, batch["proof"], batch["answer"], batch["depth"], batch["all_proofs"], batch["partial_proof"], batch["output_seq"]):
+                zip(output_text, output_scores, batch["proof"], batch["answer"], batch["depth"], batch["all_proofs"], \
+                    batch["partial_proof"], batch["output_seq"]):
                 ret = {
                         "proof_candidates": out_text,
                         "score_candidates": out_score.tolist(),

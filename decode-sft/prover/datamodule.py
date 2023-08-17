@@ -361,7 +361,7 @@ class StepwiseDataset(Dataset):  # type: ignore
                 ancestors = int_node.get_ancestors()
                 assert int_node not in ancestors
                 ancestors.append(int_node)
-                ancestors.append(tree.get_tree_root()) # hypothesis node
+                #ancestors.append(tree.get_tree_root()) # hypothesis node already in
                 for goal_node in ancestors:
                     proved_subtrees = [node for node in int_node.children if not node.is_leaf()]
                     if int_node is not goal_node:
@@ -374,7 +374,7 @@ class StepwiseDataset(Dataset):  # type: ignore
                             if node is goal_node:
                                 break
                             else:
-                                unproved_node = node
+                                unproved_child = node
                     proved_subtrees.reverse()
                     partial_proof = " ".join(serialize(t) for t in proved_subtrees)
 
@@ -386,11 +386,11 @@ class StepwiseDataset(Dataset):  # type: ignore
                         output_seq = output_seq + " -> hypothesis;"
                     else:
                         output_seq = output_seq + f" -> int: {int_node.sent};"
-                    ex = deepcopy(ex)
-                    ex["input_seq"] = input_seq
-                    ex["output_seq"] = output_seq
-                    ex["partial_proof"] = partial_proof
-                    eval_data.append(ex)
+                    ex_new = deepcopy(ex)
+                    ex_new["input_seq"] = input_seq
+                    ex_new["output_seq"] = output_seq
+                    ex_new["partial_proof"] = partial_proof
+                    eval_data.append(ex_new)
         return eval_data
 
 

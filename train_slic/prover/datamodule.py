@@ -1,11 +1,15 @@
 """
 Dataloading for EntailmentBank and RuleTaker.
 """
+import sys
+sys.path.append("../")
+
 from copy import deepcopy
 from common import *
 from prover.proof import Proof, InvalidProofStep
 import random
 import json
+import numpy as np
 import itertools
 from torch.utils.data import Dataset, DataLoader
 import pytorch_lightning as pl
@@ -67,9 +71,11 @@ def read_entailmentbank_slic_proofs(path: str, is_train: bool) -> List[Example]:
             info = {}
             info["proof"] = proof
             info["verifier_loss"] = ex["verifier_loss"]
-            info["candidate_goals"] = ex["candidate_goals"]
+            info["proof_candidates"] = ex["proof_candidates"]
+            info["score_candidates"] = ex["score_candidates"]
             info["partial_proof"] = ex["partial_proof"]
             info["stepwise_goal"] = ex["stepwise_goal"]
+            info["out_mask_scores"] = ex["out_mask_scores"]
             data.append(info)
         except InvalidProofStep:
             assert is_train
@@ -152,15 +158,44 @@ def read_ruletaker_proofs(path: str, is_train: bool) -> List[Example]:
     return data
 
 
-def collect_proved_subtrees(tree: TreeNode, prob: float) -> Iterable[TreeNode]:
-    if tree.is_leaf():
-        return []
-    elif random.random() < prob:
-        return [tree]
-    else:
-        return itertools.chain.from_iterable(
-            collect_proved_subtrees(child, prob) for child in tree.children
-        )
+def read_ruletaker_slic_proofs(path: str, is_train: bool) -> List[Example]:
+    """
+    Load the EntailmentBank dataset.
+    """
+    data = []
+    num_invalid = 0
+
+    for count, line in enumerate(open(path)):
+        ex = json.loads(line)
+        hypothesis = ex["hypothesis"]
+        context = ex["context"]
+        proof_text = ex["proof_gt"].strip()
+        try:
+            proof = Proof(
+                context,
+                hypothesis,
+                proof_text,
+                count,
+                strict=is_train,
+                requires_complete=is_train,
+            )
+            info = {}
+            info["proof"] = proof
+            info["verifier_loss"] = ex["verifier_loss"]
+            info["proof_candidates"] = ex["proof_candidates"]
+            info["score_candidates"] = ex["score_candidates"]
+            info["partial_proof"] = ex["partial_proof"]
+            info["stepwise_goal"] = ex["stepwise_goal"]
+            info["out_mask_scores"] = ex["out_mask_scores"]
+            info["answer"] = ex["answer"]
+            info["depth"] = ex["depth"]
+            data.append(info)
+        except InvalidProofStep:
+            assert is_train
+            num_invalid += 1
+
+    print(f"{len(data)} proofs loaded. {num_invalid} invalid ones removed.")
+    return data
 
 
 class EntireProofsDataset(Dataset):  # type: ignore
@@ -191,7 +226,10 @@ class EntireProofsDataset(Dataset):  # type: ignore
                 self.data = read_entailmentbank_proofs(path, is_train)
         else:
             assert dataset == "ruletaker"
-            self.data = read_ruletaker_proofs(path, is_train)
+            if self.is_train:
+                self.data = read_ruletaker_slic_proofs(path, is_train)
+            else:
+                self.data = read_ruletaker_proofs(path, is_train)
 
     def __len__(self) -> int:
         return len(self.data)
@@ -251,9 +289,6 @@ class StepwiseDataset(Dataset):  # type: ignore
         model_name: str,
         max_input_len: int,
         max_output_len: int,
-        sample_goal: str,
-        subtree_proved_prob: float,
-        subtree_proved_all_or_none: bool,
         is_train: bool,
     ) -> None:
         super().__init__()
@@ -266,9 +301,6 @@ class StepwiseDataset(Dataset):  # type: ignore
         #)
         self.max_input_len = max_input_len
         self.max_output_len = max_output_len
-        self.sample_goal = sample_goal
-        self.subtree_proved_prob = subtree_proved_prob
-        self.subtree_proved_all_or_none = subtree_proved_all_or_none
         self.is_train = is_train
         if dataset == "entailmentbank":
             if self.is_train:
@@ -277,21 +309,20 @@ class StepwiseDataset(Dataset):  # type: ignore
                 self.data = read_entailmentbank_proofs(path, is_train)
         else:
             assert dataset == "ruletaker"
-            self.data = read_ruletaker_proofs(path, is_train)
-        if not self.is_train:
-            print(self.data[0])
-            self.data = self.get_example_eval(self.data)
-            print(self.data[0])
+            if self.is_train:
+                self.data = read_ruletaker_proofs(path, is_train)
+            else:
+                self.data = read_ruletaker_proofs(path, is_train)
 
     def __len__(self) -> int:
         return len(self.data)
 
     def __getitem__(self, idx: int) -> Example:
+        ex = self.data[idx]
         if self.is_train:
-            ex = self.data[idx]
             return self.get_example_train(ex)
         else:
-             return self.get_example_eval(ex)
+            return self.get_example_eval(ex)
 
     def collate(self, examples: List[Example]) -> Batch:
         inp = [ex["input_seq"] for ex in examples]
@@ -370,11 +401,12 @@ class StepwiseDataset(Dataset):  # type: ignore
         input_seq = f"$hypothesis$ = {stepwise_goal} ; $context$ = {proof.serialize_context()} ; $proof$ = {partial_proof}"
 
         # reference output_seq, positive output_seq, negative output_seq
-        output_seq = ex["output_seq"]
+        output_seq = ex["stepwise_goal"]
+        # win rate?
         pos_index = np.argmin(ex["verifier_loss"])
-        positive_output_seq = ex["candidate_goals"][pos_index]
+        positive_output_seq = ex["proof_candidates"][pos_index]
         neg_index = np.argmax(ex["verifier_loss"])
-        negative_output_seq = ex["candidate_goals"][neg_index]
+        negative_output_seq = ex["proof_candidates"][neg_index]
 
         train_ex = {}
         train_ex["proof"] = proof
@@ -384,46 +416,14 @@ class StepwiseDataset(Dataset):  # type: ignore
         train_ex["negative_output_seq"] = negative_output_seq
         return train_ex
 
-    def get_example_eval(self, examples: List[Example]) -> List[Example]:
-        eval_data = []
-        for ex in examples:
-            proof = ex["proof"]
-            # enumerate the tree
-            tree = proof.to_tree()
-            for i, int_node in enumerate(get_internal_nodes(tree)):
-                ancestors = int_node.get_ancestors()
-                assert int_node not in ancestors
-                ancestors.append(int_node)
-                ancestors.append(tree.get_tree_root()) # hypothesis node
-                for goal_node in ancestors:
-                    proved_subtrees = [node for node in int_node.children if not node.is_leaf()]
-                    if int_node is not goal_node:
-                        unproved_child = int_node
-                        for node in int_node.iter_ancestors():
-                            for child in node.children:
-                                if child is unproved_child or child.is_leaf():
-                                    continue
-                                proved_subtrees.extend(collect_proved_subtrees(child, self.subtree_proved_prob))
-                            if node is goal_node:
-                                break
-                            else:
-                                unproved_node = node
-                    proved_subtrees.reverse()
-                    partial_proof = " ".join(serialize(t) for t in proved_subtrees)
+    def get_example_eval(self, ex: Example) -> Example:
+        proof = ex["proof"]
+        context_text = proof.serialize_context()
+        input_seq = f"$hypothesis$ = {proof.hypothesis} ; $context$ = {context_text} ; $proof$ = "
 
-                    # goal context
-                    input_seq = f"$hypothesis$ = {goal_node.sent} ; $context$ = {proof.serialize_context()} ; $proof$ = {partial_proof}"
-                    premises = [node.name for node in int_node.children]
-                    output_seq = " & ".join(premises)
-                    if goal_node is int_node:
-                        output_seq = output_seq + " -> hypothesis;"
-                    else:
-                        output_seq = output_seq + f" -> int: {int_node.sent};"
-                    ex = deepcopy(ex)
-                    ex["input_seq"] = input_seq
-                    ex["output_seq"] = output_seq
-                    eval_data.append(ex)
-        return eval_data
+        ex = deepcopy(ex)
+        ex["input_seq"] = input_seq
+        return ex
 
 
 class ProofDataModule(pl.LightningDataModule):
@@ -431,7 +431,6 @@ class ProofDataModule(pl.LightningDataModule):
         self,
         dataset: str,
         stepwise: bool,
-        sample_goal: str,
         model_name: str,
         max_input_len: int,
         max_output_len: int,
@@ -440,14 +439,11 @@ class ProofDataModule(pl.LightningDataModule):
         path_train: str,
         path_val: str,
         path_test: str,
-        subtree_proved_prob: float,
-        subtree_proved_all_or_none: bool,
     ) -> None:
         super().__init__()
         assert dataset in ("entailmentbank", "ruletaker")
         self.dataset = dataset
         self.stepwise = stepwise
-        self.sample_goal = sample_goal
         self.model_name = model_name
         self.max_input_len = max_input_len
         self.max_output_len = max_output_len
@@ -456,8 +452,6 @@ class ProofDataModule(pl.LightningDataModule):
         self.path_train = path_train
         self.path_val = path_val
         self.path_test = path_test
-        self.subtree_proved_prob = subtree_proved_prob
-        self.subtree_proved_all_or_none = subtree_proved_all_or_none
 
     def prepare_data(self) -> None:
         pass
@@ -471,9 +465,6 @@ class ProofDataModule(pl.LightningDataModule):
                     self.model_name,
                     self.max_input_len,
                     self.max_output_len,
-                    self.sample_goal,
-                    self.subtree_proved_prob,
-                    self.subtree_proved_all_or_none,
                     is_train=True,
                 )
             else:
@@ -494,9 +485,6 @@ class ProofDataModule(pl.LightningDataModule):
                     self.model_name,
                     self.max_input_len,
                     self.max_output_len,
-                    self.sample_goal,
-                    self.subtree_proved_prob,
-                    self.subtree_proved_all_or_none,
                     is_train=False,
                 )
             else:
@@ -517,9 +505,6 @@ class ProofDataModule(pl.LightningDataModule):
                     self.model_name,
                     self.max_input_len,
                     self.max_output_len,
-                    self.sample_goal,
-                    self.subtree_proved_prob,
-                    self.subtree_proved_all_or_none,
                     is_train=False,
                 )
             else:
@@ -564,3 +549,31 @@ class ProofDataModule(pl.LightningDataModule):
             pin_memory=True,
             drop_last=False,
         )
+
+
+if __name__ == "__main__":
+  
+    
+    #path_train = "/home/ysuay/codes/LLM+Reason/codes/LLMProofs/offline/eval_entailmentbank_task2/lightning_logs/version_4/results_train.json"
+    path_val = "/home/ysuay/codes/LLM+Reason/codes/NLProofS/data/entailment_trees_emnlp2021_data_v3/dataset/task_2/dev.jsonl"
+
+    #ds_train = StepwiseDataset(
+    #    dataset="entailmentbank",
+    #    path=path_train,
+    #    model_name="t5-large",
+    #    max_input_len=1024,
+    #    max_output_len=64,
+    #    is_train=True)
+
+    ds_train = StepwiseDataset(
+        dataset="entailmentbank",
+        path=path_val,
+        model_name="t5-large",
+        max_input_len=1024,
+        max_output_len=64,
+        is_train=False)
+
+    print(len(ds_train))
+    print(ds_train[0])
+    print(ds_train.collate([ds_train[0], ds_train[1]]))
+

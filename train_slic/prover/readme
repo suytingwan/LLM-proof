@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0 python main.py fit --config cli_task2_stepwise_t5-large.yaml --ckpt_path ../../../NLProofS/prover/ckpt_entailmentbank_task2/lightning_logs/version_1/checkpoints/epoch\=599-step\=12600.ckpt

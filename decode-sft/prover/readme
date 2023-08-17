@@ -1,3 +1,5 @@
 CUDA_VISIBLE_DEVICES=0 python main.py validate --config cli_task2_stepwise_t5-large.yaml --ckpt_path ../../../NLProofS/prover/ckpt_entailmentbank_task2/lightning_logs/version_1/checkpoints/epoch\=599-step\=12600.ckpt
 
 CUDA_VISIBLE_DEVICES=2 python main.py validate --config cli_ruletaker_stepwise_t5-large.yaml --ckpt_path ../../../NLProofS/prover/ckpt_ruletaker/lightning_logs/version_0/checkpoints/epoch\=19-step\=16940.ckpt
+
+CUDA_VISIBLE_DEVICES=0 python main.py validate --config cli_task1_stepwise_t5-large.yaml --ckpt_path ../../../NLProofS/prover/ckpt_entailmentbank_task1/version_1/checkpoints/epoch\=499-step\=10500.ckpt

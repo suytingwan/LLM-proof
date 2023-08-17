@@ -10,22 +10,24 @@ from transformers import (
     T5ForConditionalGeneration,
     AutoModelForCausalLM,
 )
-from evaluate import evaluate_entailmentbank, evaluate_ruletaker
-from instruct_verifier import EntailmentVerifier
+from prover.evaluate import evaluate_entailmentbank, evaluate_ruletaker
+from instruct_verifier.model import EntailmentVerifier
+from prover.proof import ProofStep, Proof, InvalidProofStep
 import torch.nn.functional as F
 
-class ProofGainWriter(pl.LightningModule):
+class EntailmentWriter(pl.LightningModule):
     def __init__(
         self,
         dataset: str,
         stepwise: bool,
         max_num_steps: int,
         model_name: str,
-        lr: float:
+        lr: float,
         warmup_steps: int,
         num_beams: int,
         topk: int,
         max_input_len: int,
+        proof_search: bool,
         verifier_weight: float,
         verifier_ckpt: Optional[str] = None,
     ) -> None:
@@ -40,6 +42,7 @@ class ProofGainWriter(pl.LightningModule):
         self.topk = topk
         self.verifier_weight = verifier_weight
         self.verifier_ckpt = verifier_ckpt
+        self.proof_search = proof_search
         self.delta = 0.5
         self.lambda_reg = 0.5
 
@@ -133,9 +136,17 @@ class ProofGainWriter(pl.LightningModule):
         Stepwise proof generation.
         """
         proof_pred, step_scores = self.generate_greedy_proofs(proof_gt)
-        # no proof search
-        proof_text_pred = [pt.proof_text for pt in proof_pred]
-        score = [min(s) if len(s) > 0 else 0.0 for s in step_scores]
+        if not self.proof_search:
+            proof_text_pred = [pt.proof_text for pt in proof_pred]
+            score = [min(s) if len(s) > 0 else 0.0 for s in step_scores]
+        else:
+            batch_size = len(proof_gt)
+            proof_text_pred = []
+            score = []
+            for i in range(batch_size):
+                p, s = self.search_proof(proof_gt[i], proof_pred[i], step_scores[i])
+                proof_text_pred.append(p)
+                score.append(s)
         return proof_text_pred, score
 
     def generate_proof_step(
@@ -183,7 +194,7 @@ class ProofGainWriter(pl.LightningModule):
         Greedily stepwise proof generation.
         """
         all_proof_pred = [
-            Proof(pt.context, pt.hypothesis, proof_text="", strict=True)
+            Proof(pt.context, pt.hypothesis, proof_text="", proof_id=0, strict=True)
             for pt in proof_gt
         ]
         proof_pred = all_proof_pred
@@ -203,14 +214,14 @@ class ProofGainWriter(pl.LightningModule):
                 output_text, output_scores, proof_pred, strict=True)
 
             # calculate the rerank by verifier
-            ranked_steps, ranked_scores = self.rerank_score(proof_steps, prover_scores, proof_gt)
+            reranked_steps, reranked_scores = self.rerank_score(proof_steps, prover_scores, proof_gt)
             proof_steps = [
                 steps[0] if len(steps) > 0 else None for steps in reranked_steps
             ]
             ranked_scores = [s[0] if len(s) > 0 else 0.0 for s in ranked_scores]
 
             # Execute the predicted reranked proof steps
-            finished_indexs = []
+            finished_indexes = []
             for i, j in enumerate(unfinished_indexes):
                 step = proof_steps[i]
                 if step is None:
@@ -253,8 +264,8 @@ class ProofGainWriter(pl.LightningModule):
         """
         Calculate step score by verifier and rerank
         """
-        if self.verifier_weight = 0:
-            return prover_scores
+        if self.verifier_weight == 0:
+            return proof_steps, prover_scores
 
         batch_premises = []
         batch_conclusion = []
@@ -278,10 +289,59 @@ class ProofGainWriter(pl.LightningModule):
                 scores.append(
                     verifier_scores[idx: idx + len(ps)].tolist()
                 )
-               idx += len(ps)
+                idx += len(ps)
         # reranking here
+        reranked_proof_steps = []
+        reranked_scores = []
         return reranked_proof_steps, reranked_scores
 
+    def search_proof(
+        self,
+        proof_gt: Proof,
+        proof_greedy: Proof,
+        step_scores_greedy: List[float],
+    ) -> Tuple[str, float]:
+        context, hypothesis = proof_gt.context, proof_gt.hypothesis
+        pg = ProofGraph(context, hypothesis)
+        pg.initialize(proof_greedy.proof_steps, step_scores_greedy)
+
+        explored_proofs: Set[str] = set()
+        context_text = proof_gt.serialize_context()
+
+        while True:
+            partial_proof = pg.sample_proof_tree(explored_proofs)
+            if partial_proof is None:
+                break
+            explored_proofs.add(partial_proof)
+
+            input_text = [
+                f"$hypothesis$ = {hypothesis} ; $context$ = {context_text} ; $proof$ = {partial_proof}"
+            ]
+            output_text, output_scores = self.generate_proof_step(input_text)
+            proof_steps, prover_scores = self.filter_invalid_steps(
+                output_text,
+                output_scores,
+                [Proof(context, hypothesis, partial_proof, strict=False)],
+                strict=False,
+            )
+            rerank_steps, rerank_scores = self.rerank_score(
+                proof_steps,
+                prover_scores,
+                [proof_gt],
+            )
+            proof_steps = list(itertools.chain.from_iterable(proof_steps))
+            scores = list(itertools.chain.from_iterable(scores))
+
+            graph_updated = False
+            for ps, s in zip(proof_steps, scores):
+                if pg.expand(ps, s):
+                    graph_updated= True
+            if not graph_updated:
+                break
+
+        proof = pg.extract_proof("hypothesis", rename=True)
+        return proof, pg.graph.nodes["hypothesis"]["score"]
+    
     def normalize_predicted_step(self, step: str, proof: Proof) -> str:
         if "-> int:" in step:
             step = step.replace("-> int:", f"-> {proof.next_int()}:").strip()
@@ -293,7 +353,7 @@ class ProofGainWriter(pl.LightningModule):
         output_scores: List[float],
         proofs: List[Proof],
         strict: bool,
-    ) -> Tuple[List[List[ProofStep]], Lits[List[float]]]:
+    ) -> Tuple[List[List[ProofStep]], List[List[float]]]:
         batch_size = len(proofs)
 
         all_proof_steps = [[] for _ in range(batch_size)]
@@ -328,11 +388,13 @@ class ProofGainWriter(pl.LightningModule):
             # decode the logits to sequences
             loss_pos = self(batch["input_seq_ids"], batch["input_seq_mask"], batch["output_seq_pos_ids"])
             loss_neg = self(batch["input_seq_ids"], batch["input_seq_mask"], batch["output_seq_neg_ids"])
+            #import pdb
+            #pdb.set_trace()
             calibration_loss = F.relu(self.delta + loss_pos - loss_neg)
-            loss = self.lambda_reg * loss + calibration_loss
+            loss = self.lambda_reg * loss_reference + calibration_loss
             self.log("loss_train", loss, on_epoch=True, sync_dist=True)
         else:
-            loss, _ = self(
+            loss = self(
                 batch["input_seq_ids"],
                 batch["input_seq_mask"],
                 batch["output_seq_ids"],
@@ -486,5 +548,5 @@ class ProofGainWriter(pl.LightningModule):
             self.lr,
             self.warmup_steps,
             max_steps,
-         
+        )         
  
