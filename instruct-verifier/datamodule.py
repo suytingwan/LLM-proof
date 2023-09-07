@@ -1,6 +1,3 @@
-import sys
-sys.path.append('../')
-
 from common import *
 from copy import deepcopy
 import itertools
@@ -25,8 +22,6 @@ class EntailmentDataset(Dataset):
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, model_max_length=max_input_len
         )
-        # for gpt2
-        self.tokenizer.pad_token = self.tokenizer.eos_token
         assert split in ("train", "val")
         self.split = split
         self.max_input_len = max_input_len
@@ -49,18 +44,13 @@ class EntailmentDataset(Dataset):
         data = []
         for count, line in enumerate(open(path)):
             info = json.loads(line.strip())
-            if info['label']:
-                data.append(info)
-            # filter by label here
-            #if count == 20:
-            #    break
-            #data.append(info)
+            data.append(info)
         return data
 
     def collate(self, examples: List[Example]) -> Batch:
-        inp = [ex["premises"] + " " + ex["conclusion"] + self.tokenizer.eos_token for ex in examples]
+        inp = [ex["premises"] for ex in examples]
         
-        entailment = self.tokenizer(
+        input_seq = self.tokenizer(
             inp,
             padding="longest",
             truncation=True,
@@ -68,27 +58,23 @@ class EntailmentDataset(Dataset):
             return_tensors="pt",
         )
 
-        input_ids = entailment.input_ids
-        labels = input_ids.clone()
-        input_exp = [ex["premises"] + " $conclusion$: " for ex in examples]
-        input_exp_seq = self.tokenizer(
-            input_exp,
+        oup = [ex["conclusion"] for ex in examples]
+        output_seq = self.tokenizer(
+            oup,
             padding="longest",
             truncation=True,
             max_length=self.max_input_len,
             return_tensors="pt",
         )
-        
-        input_attention_mask = entailment.attention_mask
-        for i in range(input_exp_seq.attention_mask.shape[0]):
-            labels[i, :sum(input_exp_seq.attention_mask[i])] = -100 #ignore index
+
+        output_seq.input_ids[output_seq.input_ids == self.tokenizer.pad_token_id] = -100
         return {
-            "premises": [ex["premises"] for ex in examples],
-            "conclusion": [ex["conclusion"] for ex in examples],
-            "input_ids": entailment["input_ids"],
-            "attention_mask": entailment["attention_mask"],
-            "label": labels,
-            "input_seq": input_exp,
+            "premises": inp,
+            "conclusion": oup,
+            "input_ids": input_seq.input_ids,
+            "attention_mask": input_seq.attention_mask,
+            "label": output_seq.input_ids,
+            "input_seq": inp,
         }
 
 

@@ -1,6 +1,3 @@
-import sys
-sys.path.append('../')
-
 from common import *
 from pytorch_lightning.cli import LightningCLI
 from datamodule import EntailmentDataModule

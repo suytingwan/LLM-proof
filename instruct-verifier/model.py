@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import pytorch_lightning as pl
 import os
 import json
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, T5ForConditionalGeneration
 
 
 class EntailmentVerifier(pl.LightningModule):
@@ -31,9 +31,12 @@ class EntailmentVerifier(pl.LightningModule):
             model_name, model_max_length=max_input_len
         )
         # for gpt
-        self.tokenizer.pad_token = self.tokenizer.eos_token
-        #language model head
-        self.seq2seq = AutoModelForCausalLM.from_pretrained(model_name)
+        if "gpt" in model_name:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+            #language model head
+            self.seq2seq = AutoModelForCausalLM.from_pretrained(model_name)
+        elif "t5" in model_name:
+            self.seq2seq = T5ForConditionalGeneration.from_pretrained(model_name)
 
     def forward(
         self,
@@ -109,7 +112,7 @@ class EntailmentVerifier(pl.LightningModule):
 
     def score(self, premises: List[str], conclusion: str) -> float:
         premise = ". ".join(premises) + "."
-        inp = f"$premises$: {premise} $conclusion$: {conclusion}" + self.tokenizer.eos_token
+        inp = f"$premises$: {premise} $conclusion$: {conclusion}"
         entailment = self.tokenizer(
             inp,
             padding="longest",
@@ -132,7 +135,7 @@ class EntailmentVerifier(pl.LightningModule):
         inp = []
         for premises, conclusion in zip(premises_batch, conclusion):
              premise = ". ".join(premises) + "."
-             inp.append(f"$premises$: {premise} $conclusion$: {conclusion}" + self.tokenizer.eos_token)
+             inp.append(f"$premises$: {premise} $conclusion$: {conclusion}")
              
         entailment = self.tokenizer(
             inp,
@@ -171,6 +174,4 @@ class EntailmentVerifier(pl.LightningModule):
                     conclusion = r["conclusion"].strip()
                     pred = r["pred"].strip()
                     oup.write(f"$premises$ = {premises} $conclusion$ = {conclusion} $pred$={pred}\n")
- 
                 print(f"validation results saved to {tsv_path}")
-
