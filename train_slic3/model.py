@@ -10,8 +10,7 @@ from transformers import (
     T5ForConditionalGeneration,
     AutoModelForCausalLM,
 )
-from prover.evaluate import evaluate_entailmentbank, evaluate_ruletaker
-from instruct_verifier.model import EntailmentVerifier
+from evaluate import evaluate_entailmentbank, evaluate_ruletaker
 from prover.proof import ProofStep, Proof, InvalidProofStep
 import torch.nn.functional as F
 
@@ -27,9 +26,6 @@ class EntailmentWriter(pl.LightningModule):
         num_beams: int,
         topk: int,
         max_input_len: int,
-        proof_search: bool,
-        verifier_weight: float,
-        verifier_ckpt: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -40,16 +36,9 @@ class EntailmentWriter(pl.LightningModule):
         self.warmup_steps = warmup_steps
         self.num_beams = num_beams
         self.topk = topk
-        self.verifier_weight = verifier_weight
-        self.verifier_ckpt = verifier_ckpt
-        self.proof_search = proof_search
-        self.delta = 0.5
+        self.delta = 2.0
         self.lambda_reg = 0.5
-
-        if stepwise and verifier_weight > 0:
-            assert verifier_ckpt <= 1.0
-            assert verifier_ckpt is not None
-            self.verifiers = [EntailmentVerifier.load_from_checkpoint(verifier_ckpt)]
+        self.flag = True
 
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name, model_max_length=max_input_len
@@ -80,23 +69,17 @@ class EntailmentWriter(pl.LightningModule):
         )
         return output.loss
 
-    def move_verifier_to_device(self) -> None:
-        if hasattr(self, "verifiers"):
-            # can assign to differen gpus
-            self.verifiers[0].to(self.device)
-
     def on_train_start(self) -> None:
-        self.move_verifier_to_device()
         if self.logger is not None:
             self.logger.log_hyperparams(self.hparams)
             assert self.trainer is not None
             print(f"Logging to {self.trainer.log_dir}")
 
     def on_validation_start(self) -> None:
-        self.move_verifier_to_device()
+        pass
 
     def on_test_start(self) -> None:
-        self.move_verifier_to_device()
+        pass
 
     def generate_entire_proof(
         self, input_text: List[str]
@@ -136,17 +119,8 @@ class EntailmentWriter(pl.LightningModule):
         Stepwise proof generation.
         """
         proof_pred, step_scores = self.generate_greedy_proofs(proof_gt)
-        if not self.proof_search:
-            proof_text_pred = [pt.proof_text for pt in proof_pred]
-            score = [min(s) if len(s) > 0 else 0.0 for s in step_scores]
-        else:
-            batch_size = len(proof_gt)
-            proof_text_pred = []
-            score = []
-            for i in range(batch_size):
-                p, s = self.search_proof(proof_gt[i], proof_pred[i], step_scores[i])
-                proof_text_pred.append(p)
-                score.append(s)
+        proof_text_pred = [pt.proof_text for pt in proof_pred]
+        score = [min(s) if len(s) > 0 else 0.0 for s in step_scores]
         return proof_text_pred, score
 
     def generate_proof_step(
@@ -213,8 +187,7 @@ class EntailmentWriter(pl.LightningModule):
             proof_steps, prover_scores = self.filter_invalid_steps(
                 output_text, output_scores, proof_pred, strict=True)
 
-            # calculate the rerank by verifier
-            reranked_steps, reranked_scores = self.rerank_score(proof_steps, prover_scores, proof_gt)
+            reranked_steps, reranked_scores = proof_steps, prover_scores
             proof_steps = [
                 steps[0] if len(steps) > 0 else None for steps in reranked_steps
             ]
@@ -257,90 +230,6 @@ class EntailmentWriter(pl.LightningModule):
             for pt in all_proof_pred
         )
         return all_proof_pred, all_step_scores
-
-    def rerank_score(
-        self, proof_steps: List[List[ProofStep]], prover_scores: List[List[float]], proof_gt: List[Proof],
-    ) -> List[List[float]]:
-        """
-        Calculate step score by verifier and rerank
-        """
-        if self.verifier_weight == 0:
-            return proof_steps, prover_scores
-
-        batch_premises = []
-        batch_conclusion = []
-        batch_proof_gt = []
-
-        for i, steps in enumerate(proof_steps):
-            for s in steps:
-                batch_premises.append(s.premise_sents)
-                batch_conclusion.append(s.conclusion_sent)
-                batch_proof_gt.append(proof_gt[i])
-        # lm head loss for verifier score
-        verifier_scores = self.verifiers[0].batch_score(
-            batch_premises, batch_conclusion)
-
-        scores = []
-        idx = 0
-        for ps in prover_scores:
-            if len(ps) == 0:
-                scores.append([])
-            else:
-                scores.append(
-                    verifier_scores[idx: idx + len(ps)].tolist()
-                )
-                idx += len(ps)
-        # reranking here
-        reranked_proof_steps = []
-        reranked_scores = []
-        return reranked_proof_steps, reranked_scores
-
-    def search_proof(
-        self,
-        proof_gt: Proof,
-        proof_greedy: Proof,
-        step_scores_greedy: List[float],
-    ) -> Tuple[str, float]:
-        context, hypothesis = proof_gt.context, proof_gt.hypothesis
-        pg = ProofGraph(context, hypothesis)
-        pg.initialize(proof_greedy.proof_steps, step_scores_greedy)
-
-        explored_proofs: Set[str] = set()
-        context_text = proof_gt.serialize_context()
-
-        while True:
-            partial_proof = pg.sample_proof_tree(explored_proofs)
-            if partial_proof is None:
-                break
-            explored_proofs.add(partial_proof)
-
-            input_text = [
-                f"$hypothesis$ = {hypothesis} ; $context$ = {context_text} ; $proof$ = {partial_proof}"
-            ]
-            output_text, output_scores = self.generate_proof_step(input_text)
-            proof_steps, prover_scores = self.filter_invalid_steps(
-                output_text,
-                output_scores,
-                [Proof(context, hypothesis, partial_proof, strict=False)],
-                strict=False,
-            )
-            rerank_steps, rerank_scores = self.rerank_score(
-                proof_steps,
-                prover_scores,
-                [proof_gt],
-            )
-            proof_steps = list(itertools.chain.from_iterable(proof_steps))
-            scores = list(itertools.chain.from_iterable(scores))
-
-            graph_updated = False
-            for ps, s in zip(proof_steps, scores):
-                if pg.expand(ps, s):
-                    graph_updated= True
-            if not graph_updated:
-                break
-
-        proof = pg.extract_proof("hypothesis", rename=True)
-        return proof, pg.graph.nodes["hypothesis"]["score"]
     
     def normalize_predicted_step(self, step: str, proof: Proof) -> str:
         if "-> int:" in step:
@@ -384,14 +273,32 @@ class EntailmentWriter(pl.LightningModule):
             loss_reference = self(
                 batch["input_seq_ids"], batch["input_seq_mask"], batch["output_seq_ids"]
             )
-            # calibration loss
-            # decode the logits to sequences
-            loss_pos = self(batch["input_seq_ids"], batch["input_seq_mask"], batch["output_seq_pos_ids"])
-            loss_neg = self(batch["input_seq_ids"], batch["input_seq_mask"], batch["output_seq_neg_ids"])
-            #import pdb
-            #pdb.set_trace()
-            calibration_loss = F.relu(self.delta + loss_pos - loss_neg)
-            loss = self.lambda_reg * loss_reference + calibration_loss
+
+            # wrong path due to partial proof
+            #loss_fake_reference = self(
+            #    batch["input_fake_seq_ids"], batch["input_fake_seq_mask"], batch["output_seq_pos_ids"]
+            #)
+
+            #unseen deductive loss
+            loss_standard_pos = self(batch["input_seq_ids"], batch["input_seq_mask"], batch["output_standard_pos_ids"])
+
+            # knowledge transfer from verifier
+            #calibration_loss1 = 0.2 * loss_standard_pos
+            calibration_loss1 = 0.1 * loss_standard_pos
+            loss = loss_reference + calibration_loss1
+
+            print("loss_reference: ", loss_reference)
+            #print("loss_fake_reference: ", loss_fake_reference)
+            print("loss_standard_pos: ", loss_standard_pos)
+            loss_cal = F.relu(self.delta + loss_reference - loss_standard_pos)
+            print("loss_cal: ", loss_cal)
+
+            #if self.flag:            
+            #    loss = loss_reference + loss_cal
+            #    self.flag = False
+            #else:
+            #    loss = 0.2 * loss_standard_pos + loss_cal
+
             self.log("loss_train", loss, on_epoch=True, sync_dist=True)
         else:
             loss = self(
