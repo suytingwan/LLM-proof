@@ -34,6 +34,9 @@ sent22: identifying sometimes requires examining
 sent23: if the population of an animal decreases then that animal may no longer be found in that place 
 sent24: an animal is a kind of organism 
 sent25: fossils can be used to study the history of organisms and environments on earth
+Reasoning step by step and finally output the proof:
+From sent13 & sent24, we can infer that a bird is a kind of organism (int1);
+From int1 & sent2, we can infer that if a fossil of a bird cannot be identified then that kind of bird is probably extinct (hypothesis);
 Proof: sent13 & sent24 -> int1: a bird is a kind of organism; int1 & sent2 -> hypothesis;
 
 Hypothesis: an animal requires water and air and food for survival
@@ -63,6 +66,11 @@ sent22: survive means live
 sent23: to breathe in means to absorb air 
 sent24: food is what an animal eats 
 sent25: the amount of something is similar to the availability of something
+Reasoning step by step and finally output the proof:
+From sent12 & sent8, we can infer that an animal requires air for survival (int1);
+From int1 & sent2, we can infer that an animal requires water and air for survival (int2);
+From sent13 & sent21, we can infer that an animal requires food for survival (int3);
+From int2 & int3, we can infer that an animal requires water and air and food for survival (hypothesis):
 Proof: sent12 & sent8 -> int1: an animal requires air for survival; int1 & sent2 -> int2: an animal requires water and air for suvival; sent13 & sent21 -> int3: an animal requires food for survival; int2 & int3 -> hypothesis;
 
 Hypothesis: stars that are blue in color are hottest in temperature
@@ -92,6 +100,8 @@ sent22: heat means heat energy
 sent23: both means two 
 sent24: heat is a kind of energy 
 sent25: surface type is a kind of characteristic
+Reasoning step by step and finally output the proof:
+From sent19 & sent5, we can infer that stars that are blue in color are hottest in temperature (hypothesis).
 Proof: sent19 & sent5 -> hypothesis;
 
 Hypothesis: as mileage per gallon of oil increases, the amount of time that oil is available will be extended
@@ -121,94 +131,13 @@ sent22: to add means to increase
 sent23: fuel supply is a kind of resource 
 sent24: if a resource is limited in supply then that resource will run out 
 sent25: to provide means to supply
-Proof: sent14 & sent6 -> int1: gasoline is a kind of resource; int1 & sent12 -> int2: as the use of gasoline decreases, the length of time that gasoline is available will increase; int2 & sent21 -> int3: as mileage per gallon of gasoline increases, the length of time that gasoline is available will increase; int3 & sent8 -> int4: as mileage per gallon of oil increases, the amount of time that oil is available will increase; int4 & sent3 -> hypothesis;
-
-Hypothesis: the firecracker stores chemical energy as its original energy
-Context:
-sent1: if something emits something else then that something increases the amount of that something else 
-sent2: phase means state 
-sent3: fire transfers heat through waves 
-sent4: heat means heat energy 
-sent5: a type of something is a kind of property of that something 
-sent6: combustion is a kind of chemical change 
-sent7: temperature / heat energy is a property of objects / weather and includes ordered values of cold / cool / warm / hot 
-sent8: amount is a property of something and includes ordered values of none / least / little / some / half / much / many / most / all 
-sent9: to be a source of something means to cause that something 
-sent10: if an object / a substance makes something then that object / that substance is a source of that thing 
-sent11: a firecracker converts chemical energy into sound energy and light energy and heat energy 
-sent12: sound means sound energy 
-sent13: fire is a kind of chemical reaction 
-sent14: a source of something increases the amount of that something 
-sent15: if something releases something else then that something is the source of that something else 
-sent16: different substances usually have different amount of chemical energy 
-sent17: where something comes from is a source of that something 
-sent18: heat energy can change the state of matter 
-sent19: energy transformation means one kind of energy changes into another kind of energy 
-sent20: light means light energy 
-sent21: if something converts one kind of energy into other kinds of energy then that something originally stores that energy as the first kind of energy 
-sent22: heating means adding heat 
-sent23: chemicals means substances 
-sent24: if something is a source of something else then that something usually contains that something else 
-sent25: heat energy is synonymous with thermal energy
-Proof: sent11 & sent21 -> hypothesis;
-
-Hypothesis: humans throwing garbage into a stream causes harm to the stream
-Context:
-sent1: absorbing something harmful has a negative impact on a thing 
-sent2: objects in an environment are a part of that environment 
-sent3: discarding is similar to throwing 
-sent4: a pond is a kind of body of water 
-sent5: landfills have a negative impact on the environment / communities 
-sent6: an landfill is a source of pollution 
-sent7: a stream is a kind of moving body of water 
-sent8: humans discarding waste in an environment causes harm to that environment 
-sent9: water pollution is when humans pollute the environment with pollutants 
-sent10: a puddle is a kind of body of water 
-sent11: a drop / droplet is a kind of liquid of small amount 
-sent12: garbage means waste 
-sent13: an environment means an area 
-sent14: a body of water is a kind of environment 
-sent15: debris can cause harm to an organism 
-sent16: trash is synonymous with waste 
-sent17: if something releases something else then that something is the source of that something else 
-sent18: pollutants have a negative impact on the environment / air quality 
-sent19: humans move waste to a landfill for disposal / storage 
-sent20: removing waste is a kind of function 
-sent21: if something has a negative impact on something else then increasing the amount of that something has a negative impact on that something else 
-sent22: the effects of something is a property of that something 
-sent23: polluting means something harmful / something poisonous is added in an environment causes harm in the environment 
-sent24: pollution is a source of pollutants 
-sent25: waste must be removed
-Proof: sent12 & sent3 & sent8 -> int1: humans throwing garbage in an environment causes harm to that environment; sent14 & sent7 -> int2: a stream is a kind of environment; int1 & int2 -> hypothesis;
-
-Hypothesis: the sun will appear larger than other stars because it is the closest star to earth
-Context:
-sent1: to move away means to increase distance 
-sent2: size is a property of objects and includes ordered values of microscopic / tiny / small / medium / large 
-sent3: as distance from an object decreases , that object will appear larger 
-sent4: as distance from an object decreases , the pull of gravity on that object increases 
-sent5: the sun is a kind of yellow dwarf 
-sent6: stars are located light years apart from each other 
-sent7: proximity means distance 
-sent8: near / close is the opposite of far / away 
-sent9: the earth revolving around the sun causes stars to appear in different areas in the sky at different times of year 
-sent10: close means low in distance 
-sent11: as the size of a light source increases , that light will appear brighter 
-sent12: height is a property of the size of an object 
-sent13: moving away from the source increases the distance 
-sent14: being in the sun is synonymous with being in the sunlight 
-sent15: the sun is the star that is closest to earth 
-sent16: the sun is average in size for a star in our galaxy 
-sent17: distance moved / distance travelled is a measure of how far an object moves 
-sent18: as the distance from an object increases , the force of gravity on that object will decrease 
-sent19: a star is a kind of celestial object / celestial body 
-sent20: measuring sometimes requires recording / learning an amount 
-sent21: a dwarf planet usually is much smaller in size / in mass than other planets 
-sent22: earth is a kind of planet 
-sent23: a planet is a kind of celestial object / body 
-sent24: planets orbit stars 
-sent25: distance is a property of space and includes ordered values of close / far
-Proof: sent22 & sent23 -> int1: earth is a kind of celestial object; int1 & sent19 & sent3 -> int2: as the distance from a star to earth decreases, the star will appear larger; int2 & sent15 -> hypothesis;""",
+Reasoning step by step and finally output the proof:
+From sent14 & sent6, we can infer that gasoline is a kind of resource (int1);
+From int1 & sent12, we can infer that as the use of gasoline decreases, the length of time that gasoline is available will increase (int2);
+From int2 & sent21, we can infer that as mileage per gallon of gasoline increases, the length of time that gasoline is available will increases (int3);
+From int3 & sent8, we can infer that as mileage per gallon of oil increases, the amount of time that oil is available will increase (int4);
+From int4 & sent3, wen can infer that as mileage per gallon of oil increases, the amount of time that oild is available will be extended (hypothesis);
+Proof: sent14 & sent6 -> int1: gasoline is a kind of resource; int1 & sent12 -> int2: as the use of gasoline decreases, the length of time that gasoline is available will increase; int2 & sent21 -> int3: as mileage per gallon of gasoline increases, the length of time that gasoline is available will increase; int3 & sent8 -> int4: as mileage per gallon of oil increases, the amount of time that oil is available will increase; int4 & sent3 -> hypothesis;""",
     2: """Hypothesis: the water in the bucket will evaporate
 Context:
 sent1: sunlight shining means sunlight is provided 
@@ -236,6 +165,10 @@ sent22: being in the sun is synonymous with being in the sunlight
 sent23: if a liquid disappears then that liquid probably evaporated 
 sent24: a bucket of water is in the sunlight 
 sent25: as the amount of water in a body of water increases , the amount of water evaporated from the body of water will increase
+Reasoning step by step and finally output the proof:
+From sent2 & sent24, we can infer that the water in the bucket will absorb solar energy (int1);
+From int1 & sent17 & sent4, we can infer that the water in the bucket will increase in temperature (int2);
+From int2 & sent17 & sent6, we can infer that the water in the bucket will evaporate (hypothesis);
 Proof: sent2 & sent24 -> int1: the water in the bucket will absorb solar energy; int1 & sent17 & sent4 -> int2: the water in the bucket will increase in temperature; int2 & sent17 & sent6 -> hypothesis;
 
 Hypothesis: a mutation in sperm or egg of a parent can cause a new trait to appear in the parent 's offspring
@@ -265,6 +198,8 @@ sent22: genetic / hereditary means of genes / heredity
 sent23: trait means property 
 sent24: genotype of an organism means the genes of an organism 
 sent25: reproductive behavior is an inherited characteristic
+Reasoning step by step and finally output the proof:
+From sent16 & sent17 & sent18, we can infer that a mutation in sperm or egg of a parent can cause a new trait to appear in the parent 's offspring (hypothesis);
 Proof: sent16 & sent17 & sent18 -> hypothesis;
 
 Hypothesis: a lack of moisture prevents the survival of plants in the desert
@@ -294,6 +229,11 @@ sent22: a tree requires sunlight to grow
 sent23: a plant requires a specific climate to grow and survive 
 sent24: a plant requires water to grow 
 sent25: a plant requires sunlight to grow
+Reasoning step by step and finally output the proof:
+From sent18 & sent3, we can infer that a lack of something that a plant requires prevents the survival of that plant (int1);
+From int1 & sent2, we can infer that a lack of water prevents the survival of plants (int2);
+From int2 & sent14, we can infer that a lack of water prevents the survival of plants in the desert (int3);
+From int3 & sent4, we can infer that a lack of moisture prevents the survival of plants in the desert (hypothesis);
 Proof: sent18 & sent3 -> int1: a lack of something that a plant requires prevents the survival of that plant; int1 & sent2 -> int2: a lack of water prevents the survival of plants; int2 & sent14 -> int3: a lack of water prevents the survival of plants in the desert; int3 & sent4 -> hypothesis;
 
 Hypothesis: cold fronts can cause thudnerstorms of rain as they pass by
@@ -323,94 +263,11 @@ sent22: a storm is a source of precipitation
 sent23: a storm is usually a source of strong winds 
 sent24: more likely means increased likelihood 
 sent25: an area receiving rain means rain falling in that area
-Proof: sent22 & sent8 -> int1: a storm is a source of rain; int1 & sent13 -> int2: a thunderstorm is a source of rain; int2 & sent9 -> hypothesis;
-
-Hypothesis: the earth rotating on its tilted axis causes the cycles of day and night on earth
-Context:
-sent1: a phase change is a kind of physical change 
-sent2: motion / movement means moving / to move 
-sent3: afternoon is a part of day time 
-sent4: hours are a kind of unit for measuring time 
-sent5: the afternoon is a part of the day 
-sent6: due to means caused by 
-sent7: the earth rotates on its tilted axis 
-sent8: the sunlight occurs during the day 
-sent9: phase means state 
-sent10: can be means able to be 
-sent11: an example of a physical change is a phase change 
-sent12: earth is a kind of planet 
-sent13: all the time means at day and at night 
-sent14: if something used to be in the past then that something has changed 
-sent15: as the rotation speed of a planet increases , the length of day and night will decrease on that planet 
-sent16: to change means to cause a change 
-sent17: rotating is similar to moving 
-sent18: days ( d ) are a metric unit used for measuring time generally used for values between 1 and 365 
-sent19: rotate means turn 
-sent20: a phase change is when matter / a substance changes from one state of matter into another state of matter 
-sent21: a planet rotating causes cycles of day and night on that planet 
-sent22: approximately means about 
-sent23: rotation is the circular movement of an object around a center / axis 
-sent24: to convert means to change 
-sent25: to rotate means to complete a rotation
-Proof: sent12 & sent7 -> int1: the earth is a planet that rotates on its tilted axis; int1 & sent21 -> hypothesis;
-
-Hypothesis: a compound can only be broken down in chemical change but not physcial changes
-Context:
-sent1: chemical reaction means chemical bonds change 
-sent2: breaking down an object changes that object 's shape / that object 's mass 
-sent3: a compound being broken down is a kind of chemical change 
-sent4: except means not 
-sent5: a compound can be chemically separated into the elements that it is made of 
-sent6: amount is a property of something and includes ordered values of none / least / little / some / half / much / many / most / all 
-sent7: if two substances together form a mixture then those substances can be separated from one another by physical changes 
-sent8: an element cannot be decomposed into two or more different substances by simple chemical methods 
-sent9: chemical reactions do not cause the total number of atoms to change 
-sent10: an example of a physical change is breaking an object 
-sent11: break apart means break down 
-sent12: changed is the opposite of unchanged 
-sent13: separating is similar to breaking 
-sent14: breaking an object into pieces changes the shape of the object 
-sent15: break down is the opposite of put together 
-sent16: chemical bonds are formed by chemically combining elements / atoms / molecules 
-sent17: a chemical property is the opposite of a physical property 
-sent18: when two substances together form a compound then those substances cannot be physically separated 
-sent19: to break down means to break into smaller pieces 
-sent20: matter / energy is always conserved in any physical or chemical process 
-sent21: break down means change from a whole into pieces 
-sent22: a physical property is a kind of property 
-sent23: a chemical property is a kind of property 
-sent24: stay the same means not changing 
-sent25: if something changes , then that something is not the same
-Proof: sent3 & sent5 -> int1: a compound can only be separated into the elements by chemical change; int1 & sent18 -> hypothesis;
-
-Hypothesis: the 150 ml water has a freezing point of 0 c
-Context:
-sent1: liquid has a a lower melting point than solid 
-sent2: melting is when solids are heated above their melting point 
-sent3: melting is a kind of phase change 
-sent4: the freezing point of water is 0 c 
-sent5: state of matter is a property of matter and includes ordered values of solid / liquid / gas 
-sent6: ice is a kind of solid 
-sent7: freezing point is similar to melting point 
-sent8: milliliters ml is a metric unit used for measuring volume generally used for values between 1 and 1000 
-sent9: as heat is transferred from something to something else , the temperature of that something will decrease 
-sent10: freezing causes a solid to form 
-sent11: volume is similar to amount 
-sent12: freezing means cold temperatures 
-sent13: matter in the solid phase has definite volume 
-sent14: freezing point is a property of a substance / material 
-sent15: cooling means temperature decreases 
-sent16: melting point means temperature at which a solid melts / above which a solid melts 
-sent17: ice is colder in temperature than water 
-sent18: melting point is a property of a substance / material 
-sent19: a phase change is when matter / a substance changes from one state of matter into another state of matter 
-sent20: volume has no impact on boiling / melting / freezing point 
-sent21: there is a 100 ml water 
-sent22: cold means low in temperature 
-sent23: if an object is placed in a substance / in a location that is colder then that object will cool to the same temperature of that substance / of that location 
-sent24: mass has no impact on boiling / melting / freezing point 
-sent25: there is a 150 ml water
-Proof: sent21 & sent25 & sent8 -> int1: the 100 ml water and the 150 ml water have different volumes; int1 & sent20 -> int2: different volumes have no impact on the freezing point of the 100ml water and 150 ml water; int2 & sent4 -> hypothesis;""",
+Reasoning step by step and finally output the proof:
+From sent22 & sent8, we can infer that a storm is a source of rain (int1);
+From int1 & sent13, we can infer that a thunderstorm is a source of rain (int2);
+From int2 & sent9, we can infer that cold fronts can cause thunderstorms of rain as they pass by (hypothesis);
+Proof: sent22 & sent8 -> int1: a storm is a source of rain; int1 & sent13 -> int2: a thunderstorm is a source of rain; int2 & sent9 -> hypothesis;""",
     3: """Hypothesis: the offspring of two tay-sachs carriers will have 25% probability to have the tay-sachs disease
 Context:
 sent1: if only recessive genes are present , then the recessive trait will be visible / expressed 
@@ -438,6 +295,11 @@ sent22: a tay-sachs disease carrier have one dominant and one recessive tay-sach
 sent23: crossing two heterozygous dominant organisms causes their offspring to be homozygous recessive of 25% probability 
 sent24: 25% probability is similar to one in four 
 sent25: a homozygous recessive organism contains only recessive genes
+Reasoning step by step and finally output the proof:
+From sent18 & sent22, we can infer that a tay-sachs disease carrier is heterozygous (int1);
+From int1 & sent23, we can infer that the offspring of two tay-sachs carriers will have 25% probability to be homozygous recessive in tay-sachs disease (int2);
+From int2 & sent25, we can infer that the offspring of two tay-sachs carries will have 25% probability to contain only recessive genes for tay-sachs disease (int3);
+From int3 & sent1, we can infer that the offspring of two tay-sachs carriers will have 25% probability to have the tay-sachs disease (hypothesis);
 Proof: sent18 & sent22 -> int1: a tay-sachs disease carrier is heterozygous; int1 & sent23 -> int2: the offspring of two tay-sachs carriers will have 25% probability to be homozygous recessive in tay-sachs disease; int2 & sent25 -> int3: the offspring of two tay-sachs carriers will have 25% probability to contain only recessive genes for tay-sachs disease; int3 & sent1 -> hypothesis;
 
 Hypothesis: sulfur is a kind of element
@@ -467,6 +329,8 @@ sent22: both means two
 sent23: different is the opposite of the same 
 sent24: able is the opposite of unable 
 sent25: an element cannot be decomposed into two or more different substances by simple chemical methods
+Reasoning step by step and finally output the proof:
+From sent17 & sent25, we can infer that sulfur is a kind of element (hypothesis);
 Proof: sent17 & sent25 -> hypothesis;
 
 Hypothesis: the protist may be volvox
@@ -496,6 +360,11 @@ sent22: animals require fertilization to reproduce
 sent23: reproduction is when an organism passes genetic information from itself to its offspring 
 sent24: reproduction ensures the continuation of a plant or animal species 
 sent25: each sex cell provides half the number of chromosomes in a fertilized egg through sexual reproduction
+Reasoning step by step and finally output the proof:
+From sent1 & sent15, we can infer that if a zygote is formed then a sexual reproduction process has happened (int1);
+From int1 & sent20, we can infer that a sexual reproduction process has happend in the protists that the student observed (int2);
+From sent10 & sent2, we can infer that volvox is a kind of protist that reproduces sexually (int3);
+From int2 & int3, we can infer that the protist may be volvox (hypothesis);
 Proof: sent1 & sent15 -> int1: if a zygote is formed then a sexual reproduction process has happened; int1 & sent20 -> int2: a sexual reproduction process has happened in the protists that the student observed; sent10 & sent2 -> int3: volvox is a kind of protist that reproduces sexually; int2 & int3 -> hypothesis;
 
 Hypothesis: the light energy allows the student to see the specimen through the microscope
@@ -525,94 +394,11 @@ sent22: light is a kind of energy
 sent23: sight means vision 
 sent24: sunlight is a kind of light 
 sent25: sight means to see
-Proof: sent2 & sent22 -> int1: seeing requires light energy; int1 & sent7 -> int2: light energy allows things to be seen; int2 & sent4 -> hypothesis;
-
-Hypothesis: gravity is the force that causes the marble to be pulled down on a planet
-Context:
-sent1: gravity accelerates an object while that object falls by pulling on it 
-sent2: gravity is a kind of force 
-sent3: exerting force on an object means a force acts on an object 
-sent4: sinking is a kind of downward direction 
-sent5: a force is a kind of push or pull on an object 
-sent6: a drop / droplet is a kind of liquid of small amount 
-sent7: the mass of an object causes the gravitational force exerted by that object 
-sent8: a liquid is a kind of fluid 
-sent9: gravity means gravitational pull / gravitational energy / gravitational force / gravitational attraction 
-sent10: to cause means to result in 
-sent11: colliding is a kind of touching 
-sent12: particles in a liquid flows past each other 
-sent13: force requires energy 
-sent14: marble is a kind of object / material 
-sent15: gravity causes objects that have mass / substances to be pulled down / to fall on a planet 
-sent16: down is a kind of direction 
-sent17: a droplet is a kind of little drop 
-sent18: gravity pulls objects towards planets 
-sent19: colliding means coming into a collision 
-sent20: drop means decrease 
-sent21: if something is dropped into a container of something else then that something is touching that something else 
-sent22: when a force is applied to an object , that force is acting on that object 
-sent23: flowing liquid can push objects 
-sent24: empty into a body of water means enters a body of water 
-sent25: to be lowered into a substance means to be placed into that substance
-Proof: sent14 & sent15 & sent2 -> hypothesis;
-
-Hypothesis: pesticides and fertilizers are source of pollution
-Context:
-sent1: harming an environment causes harm to the living things / to the organisms in that environment 
-sent2: humans changing ecosystems / environments usually has a negative impact on an ecosystem / organisms living in an ecosystem 
-sent3: humans eat crops 
-sent4: controlling the amount of pollution is similar to reducing the amount of pollution 
-sent5: polluting means something harmful / something poisonous is added in an environment causes harm in the environment 
-sent6: a cause of something is a reason for that something 
-sent7: waste has a negative impact on the environment 
-sent8: fertilizers are a source of pollution 
-sent9: adverse effect means negative impact 
-sent10: water pollution is when humans pollute the environment with pollutants 
-sent11: limiting a source of something tht has a negative impact on something else has a positive impact on that something else 
-sent12: polluting means something poisonous is added to an environment 
-sent13: if something has a negative impact on something else then increasing the amount of that something has a negative impact on that something else 
-sent14: if crops are sprayed with something then that something will be on the crop 's surface 
-sent15: a pesticide is used for protecting plants by killing insects 
-sent16: as the amount of a source of something decreases , the amount of that something will decrease 
-sent17: overuse is similar to depletion 
-sent18: pollution is a source of pollutants 
-sent19: eating food that contains pesticides can have a negative impact on the health of an animal 
-sent20: human waste often causes harm to an environment 
-sent21: damage has a negative impact on a thing 
-sent22: destroying something causes harm to that something 
-sent23: pesticides can cause pollution 
-sent24: poisoning an environment means poisoning the organisms in that environment 
-sent25: crops are a kind of edible plant for eating
-Proof: sent23 & sent8 -> hypothesis;
-
-Hypothesis: the function of red blood cells is to carry oxygen
-Context:
-sent1: a function is an activity 
-sent2: if an organism can do something , then that organism is able to do that something 
-sent3: transporting is a kind of function 
-sent4: red blood cells carry oxygen 
-sent5: to bring means to transport 
-sent6: take in oxygen means get oxygen into the blood 
-sent7: to be used for something means to be required by that something 
-sent8: to transport can mean to carry 
-sent9: role means function 
-sent10: if something is transported to something else then that something else receives that something 
-sent11: if something requires something else then that something else is important to that something 
-sent12: blood absorbs oxygen in the lungs 
-sent13: oxygenated means having oxygen 
-sent14: oxygen can be found in air 
-sent15: transport means to move / to make travel 
-sent16: controlling is a kind of function 
-sent17: to carry means to move something 
-sent18: the brain is a part of the body 
-sent19: purpose means role 
-sent20: to do a job means to perform a job 
-sent21: to have a function is similar to to be responsible for 
-sent22: to be involved in something means to have a role in something 
-sent23: cells require oxygen for fuel 
-sent24: the function of something is what that something is used to do 
-sent25: a vehicle can be used for transferring
-Proof: sent3 & sent8 -> int1: carrying is a kind of function; int1 & sent4 -> hypothesis;""",
+Reasoning step by step and finally output the proof:
+From sent2 & sent22, we can infer that seeing requires light energy (int1);
+From int1 & sent7, we can infer that light energy allows things to be seen (int2);
+From int2 & sent4, we can infer that the light energy allows the student to see the specimen through the microscope (hypothesis);
+Proof: sent2 & sent22 -> int1: seeing requires light energy; int1 & sent7 -> int2: light energy allows things to be seen; int2 & sent4 -> hypothesis;""",
 }
 
 
@@ -623,7 +409,7 @@ def format_input(ex) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="gpt-3.5-turbo")
+    parser.add_argument("--model", type=str, default="gpt-4")
     parser.add_argument(
         "--prompt",
         type=int,
@@ -634,7 +420,7 @@ def main() -> None:
     parser.add_argument(
         "--sleep",
         type=int,
-        default=15,
+        default=10,
         help="Time gap (in seconds) between two consecutive requests. Only necessary for Codex. (Default: 15)",
     )
     parser.add_argument("--api-key", type=str, required=True, help="OpenAI API key.")
@@ -658,9 +444,9 @@ def main() -> None:
         response = openai.ChatCompletion.create(
             model=args.model,
             messages=[{"role": "user",
-                      "content": prompt}],
+                       "content": prompt}],
             temperature=0,
-            max_tokens=256,
+            max_tokens=1024,
             stop="-> hypothesis;",
         )
         sleep(args.sleep)
@@ -669,6 +455,7 @@ def main() -> None:
         f.write(json_ret + '\n')
         proof = (response["choices"][0]["message"]["content"]).strip()
         print(f"$proof$ = {proof};")
+    
 
 if __name__ == "__main__":
     main()

@@ -1,1 +1,0 @@
-CUDA_VISIBLE_DEVICES=1 python main.py validate --config cli_task2_stepwise_t5-large.yaml --ckpt_path ../instruct-verifier/ckpt_new/lightning_logs/version_3/checkpoints/epoch\=19-step\=6520.ckpt

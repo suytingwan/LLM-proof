@@ -1,4 +1,0 @@
-CUDA_VISIBLE_DEVICES=0 python main.py validate --config cli_entailmentbank_task2.yaml --ckpt_path /home/ysuay/codes/LLM+Reason/codes/LLMProofs/instruct-verifier/ckpt/lightning_logs/version_3/checkpoints/epoch=99-step=10600.ckpt
-
-CUDA_VISIBLE_DEVICES=0 python main.py validate --config cli_entailmentbank_task1.yaml --ckpt_path /home/ysuay/codes/LLM+Reason/codes/LLMProofs/instruct-verifier/ckpt/lightning_logs/version_3/checkpoints/epoch=99-step=10600.ckpt
-
