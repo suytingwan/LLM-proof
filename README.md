@@ -1,5 +1,7 @@
 # LLM-proof
 Repo for natural language proof generation with large language model with contrastive stepwise decoding
+## Env Setup
+We use Lightning CLI and env setup by `conda env create -f nlproofs.yaml`. Refer to [NLProofs](https://github.com/princeton-nlp/NLProofS).
 
 ## Analysis of Prompting
 Scripts for Vanilla Prompt, COT, and Select-and-Inference are placed under folder `./scripts`.
@@ -28,29 +30,26 @@ CUDA_VISIBLE_DEVICES=0 python main.py fit --config cli_task2_vanilla_flan-t5-lar
 ### Enhanced Hard Negatives Contruction
 The construction of enhanced hard negatives consists of three stages: training the reasoner, inference with reasoner, and filtering with checker.
 #### 1) Training the Reasoner
-```
-cd ./reasoner
-```
 Preprocess and sample the training data from training dataset
 ```
-cd ./data_sample
+cd ./reasoner/data_sample
 python datasample.py
 ```
 Since the gold proof tree for task1 and task2 are the same, the acquired training data is same either from task1 or task2. The reasoner is trained with the training data:
 ```
-cd ./train
+cd ./reasoner/train
 CUDA_VISIBLE_DEVICES=0 python main.py fit --config cli_entailmentbank_task1.yaml
 ```
 #### 2) Inference with Reasoner
 ```
-cd ./inference
+cd ./reasoner/inference
 CUDA_VISIBLE_DEVICES=0 python main.py validate --config cli_entailmentbank_task1.yaml
 CUDA_VISIBLE_DEVICES=0 python main.py validate --config cli_entailmentbank_task2.yaml
 ```
-This will result hard negatives for task1 and task2 seperately.
+This will result hard negatives for task1 and task2 seperately. Sampling strategy can be `random` or `BM25`. Default is `random`.
 #### 3) Filtering with Checker
 ```
-cd ./filter
+cd ./reasoner/filter
 python verify.py --task task1
 ```
 Same with task2.
