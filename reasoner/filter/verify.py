@@ -36,8 +36,6 @@ for line in fread:
             logit = linear(hidden).squeeze(-1)
             logit_calibrated = logit / t
             score_calibrated = logit_calibrated.sigmoid()
-            #import pdb
-            #pdb.set_trace()
             decode_score_new.append(score_calibrated.detach().item())
 
     info["decode_score_new"] = decode_score_new

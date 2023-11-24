@@ -35,16 +35,6 @@ def sample_topk_sentence(query: str, corpus: List[str]) -> List[str]:
     indexs = indexs.tolist()
     sents = [corpus[ind] for ind in indexs]
     return sents
-                                    
-def sample_redundant_sentence(query: str, corpus: List[str]) -> str:
-    assert query not in corpus
-    sent = random.sample(corpus, 1)
-    return sent
-
-def sample_random_2hop_sentence(query: str, corpus: List[str]) -> List[str]:
-    assert query not in corpus
-    sents = random.sample(corpus, 2)
-    return sents
 
 def enumerate_premise_nodes(node: TreeNode, max_num: int) -> List[List[TreeNode]]:
     all_premises: List[List[TreeNode]] = [[]]
@@ -63,7 +53,8 @@ def enumerate_premise_nodes(node: TreeNode, max_num: int) -> List[List[TreeNode]
                     all_premises.append(premises + child_premises)
     return [premises for premises in all_premises if len(premises) <= max_num]
 
-def create_synthetic_seq(int_node, context, seen_leaves, all_leaves=None):
+def create_synthetic_seq(int_node, context, seen_leaves, all_leaves=None, sample="random"):
+    assert sample in ("random", "similar")
     premises = [node.sent for node in int_node.children]
     identities = [node.name for node in int_node.children]
 
@@ -88,9 +79,11 @@ def create_synthetic_seq(int_node, context, seen_leaves, all_leaves=None):
             input_fake_ident.append(identities)
             print("catch entire tree")
             continue
-        #alternatives = sample_topk_sentence(p, candidates)
-        alternatives = random.sample(candidates, min(len(candidates), 5))
-        #alternatives = candidates
+        if sample == "BM25":
+            alternatives = sample_topk_sentence(p, candidates)
+        else:
+            alternatives = random.sample(candidates, min(len(candidates), 5))
+
         for alternative in alternatives:
             prems = deepcopy(premises)
             prems[i] = alternative
