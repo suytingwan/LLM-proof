@@ -10,7 +10,7 @@ from transformers import (
     T5ForConditionalGeneration,
     AutoModelForCausalLM,
 )
-from evaluate import evaluate_entailmentbank, evaluate_ruletaker
+from evaluate import evaluate_entailmentbank
 from proof import ProofStep, Proof, InvalidProofStep
 import torch.nn.functional as F
 
@@ -420,22 +420,6 @@ class EntailmentWriter(pl.LightningModule):
                 self.log(f"ExactMatch_{k}_{split}", v, on_step=False, on_epoch=True)
             for k, v in f1.items():
                 self.log(f"F1_{k}_{split}", v, on_step=False, on_epoch=True)
-
-        elif self.dataset == "ruletaker":
-            answer_accuracies, proof_accuracies = evaluate_ruletaker(results)
-            for k in answer_accuracies.keys():
-                self.log(
-                    f"Accuracy_answer_{k}_{split}",
-                    answer_accuracies[k],
-                    on_step=False,
-                    on_epoch=True,
-                )
-                self.log(
-                    f"Accuracy_proof_{k}_{split}",
-                    proof_accuracies[k],
-                    on_step=False,
-                    on_epoch=True,
-                )
 
     def configure_optimizers(self) -> Dict[str, Any]:
         assert self.trainer is not None
