@@ -333,9 +333,7 @@ def main() -> None:
         default=10,
         help="Time gap (in seconds) between two consecutive requests. Only necessary for Codex. (Default: 15)",
     )
-    #parser.add_argument("--api-key", type=str, required=True, help="OpenAI API key.")
-    #parser.add_argument("--api-key", type=str, default="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", help="OpenAI API key.")
-    parser.add_argument("--api-key", type=str, default="sk-6C9MuJp9tuZr62bC5157EeD2E6824fBbBd0a515462Ba4fA4", help="OpenAI API key.")
+    parser.add_argument("--api-key", type=str, default="", help="OpenAI API key.")
     parser.add_argument(
         "--data-path",
         type=str,
