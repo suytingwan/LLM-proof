@@ -1,5 +1,5 @@
 # LLM-proof
-Repo for natural language proof generation with large language model with contrastive stepwise decoding
+Repo for [natural language proof generation with large language model with contrastive stepwise decoding](https://arxiv.org/pdf/2311.06736).
 ## Env Setup
 We use Lightning CLI and env setup by `conda env create -f nlproofs.yaml`. Refer to [NLProofs](https://github.com/princeton-nlp/NLProofS).
 
